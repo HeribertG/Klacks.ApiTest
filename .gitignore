@@ -1,0 +1,28 @@
+# Build results
+bin/
+obj/
+
+# Build artifacts
+*.dll
+*.pdb
+*.exe
+*.cache
+*.tmp
+
+# NuGet
+*.nupkg
+*.snupkg
+project.lock.json
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+
+# Test results
+TestResults/
+*.trx
+nunit_random_seed.tmp
+
+# Source link
+*.sourcelink.json
