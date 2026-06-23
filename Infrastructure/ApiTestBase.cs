@@ -26,7 +26,7 @@ public abstract class ApiTestBase
     [OneTimeSetUp]
     public void BaseOneTimeSetUp()
     {
-        Factory = new KlacksApiFactory();
+        Factory = Klacks.ApiTest.TestAssemblySetup.SharedFactory;
         Client = Factory.CreateClient();
     }
 
@@ -34,7 +34,7 @@ public abstract class ApiTestBase
     public void BaseOneTimeTearDown()
     {
         Client?.Dispose();
-        Factory?.Dispose();
+        // Factory is owned by TestAssemblySetup — not disposed here
     }
 
     [SetUp]
