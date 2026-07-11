@@ -12,6 +12,16 @@ namespace Klacks.ApiTest.GlobalRules;
 public class GlobalRulesControllerTests : ApiTestBase
 {
     private const string BaseRoute = "/api/backend/assistant/global-rules";
+    private const string TestRulePrefix = "test-rule-";
+
+    [TearDown]
+    public async Task CleanUpTestRules()
+    {
+        await DbContext.Database.ExecuteSqlRawAsync(
+            $"DELETE FROM global_agent_rule_histories WHERE name LIKE '{TestRulePrefix}%'");
+        await DbContext.Database.ExecuteSqlRawAsync(
+            $"DELETE FROM global_agent_rules WHERE name LIKE '{TestRulePrefix}%'");
+    }
 
     // ── Auth ────────────────────────────────────────────────────────────────
 
@@ -87,7 +97,7 @@ public class GlobalRulesControllerTests : ApiTestBase
     public async Task Upsert_WithUserRole_ReturnsOk()
     {
         AuthorizeAs(Roles.User);
-        var ruleName = $"test-rule-{Guid.NewGuid():N}";
+        var ruleName = $"{TestRulePrefix}{Guid.NewGuid():N}";
 
         var response = await Client.PutAsJsonAsync($"{BaseRoute}/{ruleName}", new { Content = "Test content", SortOrder = 99 });
 
@@ -98,7 +108,7 @@ public class GlobalRulesControllerTests : ApiTestBase
     public async Task Deactivate_WithUserRole_ReturnsNoContent()
     {
         AuthorizeAs(Roles.User);
-        var ruleName = $"test-rule-{Guid.NewGuid():N}";
+        var ruleName = $"{TestRulePrefix}{Guid.NewGuid():N}";
 
         var response = await Client.DeleteAsync($"{BaseRoute}/{ruleName}");
 
