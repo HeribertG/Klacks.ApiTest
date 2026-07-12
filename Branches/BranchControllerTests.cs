@@ -35,13 +35,13 @@ public class BranchControllerTests : ApiTestBase
     }
 
     [Test]
-    public async Task GetBranchList_WithUserRole_Returns403()
+    public async Task GetBranchList_WithUserRole_ReturnsOk()
     {
         AuthorizeAs(Roles.User);
 
         var response = await Client.GetAsync($"{BaseRoute}/GetBranchList");
 
-        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
     // ── GET list ────────────────────────────────────────────────────────────

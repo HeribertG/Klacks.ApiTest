@@ -23,13 +23,13 @@ public class PostcodeChControllerTests : ApiTestBase
     }
 
     [Test]
-    public async Task GetAll_WithUserRole_Returns403()
+    public async Task GetAll_WithUserRole_ReturnsOk()
     {
         AuthorizeAs(Roles.User);
 
         var response = await Client.GetAsync(BaseRoute);
 
-        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
     // ── GET list ────────────────────────────────────────────────────────────

@@ -2,7 +2,8 @@
 
 /**
  * HTTP-level tests for QualificationController (api/backend/Qualification).
- * All endpoints require the Admin role; covers auth enforcement (401/403) and CRUD happy paths.
+ * GetQualificationList is open to all authenticated users; mutations require the Admin role.
+ * Covers auth enforcement (401/403) and CRUD happy paths.
  */
 
 using Klacks.Api.Domain.Enums;
@@ -39,23 +40,23 @@ public class QualificationControllerTests : ApiTestBase
     }
 
     [Test]
-    public async Task GetQualificationList_WithUserRole_Returns403()
+    public async Task GetQualificationList_WithUserRole_ReturnsOk()
     {
         AuthorizeAs(Roles.User);
 
         var response = await Client.GetAsync($"{BaseRoute}/GetQualificationList");
 
-        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
     [Test]
-    public async Task GetQualificationList_WithAuthorisedRole_Returns403()
+    public async Task GetQualificationList_WithAuthorisedRole_ReturnsOk()
     {
         AuthorizeAs(Roles.Authorised);
 
         var response = await Client.GetAsync($"{BaseRoute}/GetQualificationList");
 
-        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
     // ── GET list ────────────────────────────────────────────────────────────

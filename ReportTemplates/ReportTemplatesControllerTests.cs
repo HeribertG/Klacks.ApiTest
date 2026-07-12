@@ -2,9 +2,9 @@
 
 /**
  * HTTP-level tests for ReportTemplatesController (api/backend/ReportTemplates).
- * Covers auth enforcement (401/403), Admin-only role restriction, CRUD happy paths
- * (GetAll, GetById, GetByType, Create, Update, Delete), and 404 for unknown ids.
- * ReportTemplatesController requires Admin role for all endpoints.
+ * Covers auth enforcement (401/403), CRUD happy paths (GetAll, GetById, GetByType,
+ * Create, Update, Delete), and 404 for unknown ids. GET endpoints are open to all
+ * authenticated users; mutations (Create/Update/Delete) require the Admin role.
  */
 
 using Klacks.Api.Application.DTOs.Reports;
@@ -28,13 +28,13 @@ public class ReportTemplatesControllerTests : ApiTestBase
     }
 
     [Test]
-    public async Task GetAll_WithUserRole_Returns403()
+    public async Task GetAll_WithUserRole_ReturnsOk()
     {
         AuthorizeAs(Roles.User);
 
         var response = await Client.GetAsync(BaseRoute);
 
-        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
     [Test]

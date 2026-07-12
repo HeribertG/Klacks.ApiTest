@@ -37,23 +37,23 @@ public class MacrosControllerTests : ApiTestBase
     }
 
     [Test]
-    public async Task GetMacros_WithUserRole_Returns403()
+    public async Task GetMacros_WithUserRole_ReturnsOk()
     {
         AuthorizeAs(Roles.User);
 
         var response = await Client.GetAsync($"{BaseRoute}/Macros");
 
-        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
     [Test]
-    public async Task GetMacros_WithAuthorisedRole_Returns403()
+    public async Task GetMacros_WithAuthorisedRole_ReturnsOk()
     {
         AuthorizeAs(Roles.Authorised);
 
         var response = await Client.GetAsync($"{BaseRoute}/Macros");
 
-        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
     // ── GET list ────────────────────────────────────────────────────────────

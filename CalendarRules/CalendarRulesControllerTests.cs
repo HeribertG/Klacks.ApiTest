@@ -36,23 +36,23 @@ public class CalendarRulesControllerTests : ApiTestBase
     }
 
     [Test]
-    public async Task GetCalendarRuleList_WithUserRole_Returns403()
+    public async Task GetCalendarRuleList_WithUserRole_ReturnsOk()
     {
         AuthorizeAs(Roles.User);
 
         var response = await Client.GetAsync($"{BaseRoute}/GetCalendarRuleList");
 
-        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
     [Test]
-    public async Task GetCalendarRuleList_WithAuthorisedRole_Returns403()
+    public async Task GetCalendarRuleList_WithAuthorisedRole_ReturnsOk()
     {
         AuthorizeAs(Roles.Authorised);
 
         var response = await Client.GetAsync($"{BaseRoute}/GetCalendarRuleList");
 
-        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
     // ── GET list ────────────────────────────────────────────────────────────
