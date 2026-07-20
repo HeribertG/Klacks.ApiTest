@@ -70,13 +70,13 @@ public class GeneralSettingsControllerTests : ApiTestBase
     // ── GET single ──────────────────────────────────────────────────────────
 
     [Test]
-    public async Task GetSetting_UnknownType_Returns404()
+    public async Task GetSetting_UnknownType_ReturnsNoContent()
     {
         AuthorizeAs(Roles.Admin);
 
         var response = await Client.GetAsync($"{BaseRoute}/GetSetting/NONEXISTENT_TYPE_{Guid.NewGuid():N}");
 
-        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
     }
 
     // ── POST AddSetting ──────────────────────────────────────────────────────

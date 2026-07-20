@@ -128,13 +128,13 @@ public class MacrosControllerTests : ApiTestBase
         AuthorizeAs(Roles.Admin);
         var created = await CreateMacroAsync($"{TestPrefix}Put");
 
-        created.Content = "updated content";
+        created.Content = "OUTPUT 1, 1";
         var response = await Client.PutAsJsonAsync($"{BaseRoute}/Macros", created);
         var updated = await response.Content.ReadFromJsonAsync<MacroResource>();
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         updated.ShouldNotBeNull();
-        updated!.Content.ShouldBe("updated content");
+        updated!.Content.ShouldBe("OUTPUT 1, 1");
     }
 
     // ── DELETE ──────────────────────────────────────────────────────────────
@@ -165,7 +165,7 @@ public class MacrosControllerTests : ApiTestBase
     private static MacroResource MinimalMacro(string name) => new()
     {
         Name = name,
-        Content = "test content",
+        Content = "OUTPUT 1, 0",
         Category = MacroCategoryEnum.Shift,
         Type = 0,
         Description = new Api.Domain.Common.MultiLanguage { De = "Test", En = "Test" },
