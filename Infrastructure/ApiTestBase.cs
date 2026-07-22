@@ -28,6 +28,13 @@ public abstract class ApiTestBase
     {
         Factory = Klacks.ApiTest.TestAssemblySetup.SharedFactory;
         Client = Factory.CreateClient();
+
+        // The first HttpClient request across the whole assembly runs right after the shared host has
+        // booted and self-seeded a fresh CI database (migrations + full seed set). On a cold, resource
+        // constrained CI runner that first request can exceed HttpClient's default 100s timeout and
+        // abort with a TaskCanceledException (client abort), which fails an otherwise-passing test.
+        // A generous timeout removes that cold-start flake without weakening any assertion.
+        Client.Timeout = TimeSpan.FromMinutes(3);
     }
 
     [OneTimeTearDown]
