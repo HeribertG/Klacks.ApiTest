@@ -14,20 +14,6 @@ public class AgentTriggerPreferencesControllerTests : ApiTestBase
 {
     private const string BaseRoute = "/api/backend/assistant/trigger-preferences";
 
-    private static readonly string[] ExpectedKinds =
-    [
-        AgentTriggerKinds.UnstaffedShift,
-        AgentTriggerKinds.LockConflict,
-        AgentTriggerKinds.TargetHoursDrift,
-        AgentTriggerKinds.ScenarioPending,
-        AgentTriggerKinds.PeriodCloseDue,
-        AgentTriggerKinds.ContractExpiringSoon,
-        AgentTriggerKinds.AvailabilityGap,
-        AgentTriggerKinds.PeriodOverdue,
-        AgentTriggerKinds.ClientMissingCoreData,
-        AgentTriggerKinds.MuteSuggestion
-    ];
-
     [TearDown]
     public new void BaseTearDown()
     {
@@ -76,7 +62,7 @@ public class AgentTriggerPreferencesControllerTests : ApiTestBase
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         prefs.ShouldNotBeNull();
-        prefs.Select(p => p.TriggerKind).ShouldBe(ExpectedKinds, ignoreOrder: true);
+        prefs.Select(p => p.TriggerKind).ShouldBe(AgentTriggerKinds.All, ignoreOrder: true);
     }
 
     // ── PUT update ──────────────────────────────────────────────────────────
