@@ -2,8 +2,8 @@
 
 /**
  * HTTP-level tests for GlobalRulesController (api/backend/assistant/global-rules).
- * All endpoints are available to any authenticated user (no Admin restriction).
- * Covers 401 enforcement, GET happy-paths, and history endpoint.
+ * Reads are available to any authenticated user; Upsert and Deactivate are Admin only.
+ * Covers 401/403 enforcement, GET happy-paths, and history endpoint.
  */
 
 namespace Klacks.ApiTest.GlobalRules;
@@ -91,12 +91,23 @@ public class GlobalRulesControllerTests : ApiTestBase
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
-    // ── Upsert + Deactivate (any authenticated role) ─────────────────────────
+    // ── Upsert + Deactivate (Admin only since the 2026-08-22 IDOR remediation) ─
 
     [Test]
-    public async Task Upsert_WithUserRole_ReturnsOk()
+    public async Task Upsert_WithUserRole_Returns403()
     {
         AuthorizeAs(Roles.User);
+        var ruleName = $"{TestRulePrefix}{Guid.NewGuid():N}";
+
+        var response = await Client.PutAsJsonAsync($"{BaseRoute}/{ruleName}", new { Content = "Test content", SortOrder = 99 });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Test]
+    public async Task Upsert_WithAdminRole_ReturnsOk()
+    {
+        AuthorizeAs(Roles.Admin);
         var ruleName = $"{TestRulePrefix}{Guid.NewGuid():N}";
 
         var response = await Client.PutAsJsonAsync($"{BaseRoute}/{ruleName}", new { Content = "Test content", SortOrder = 99 });
@@ -105,9 +116,20 @@ public class GlobalRulesControllerTests : ApiTestBase
     }
 
     [Test]
-    public async Task Deactivate_WithUserRole_ReturnsNoContent()
+    public async Task Deactivate_WithUserRole_Returns403()
     {
         AuthorizeAs(Roles.User);
+        var ruleName = $"{TestRulePrefix}{Guid.NewGuid():N}";
+
+        var response = await Client.DeleteAsync($"{BaseRoute}/{ruleName}");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Test]
+    public async Task Deactivate_WithAdminRole_ReturnsNoContent()
+    {
+        AuthorizeAs(Roles.Admin);
         var ruleName = $"{TestRulePrefix}{Guid.NewGuid():N}";
 
         var response = await Client.DeleteAsync($"{BaseRoute}/{ruleName}");

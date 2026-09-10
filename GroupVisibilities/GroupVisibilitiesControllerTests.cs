@@ -3,8 +3,7 @@
 /**
  * HTTP-level tests for GroupVisibilitiesController (api/backend/GroupVisibilities).
  * Covers list, get — including auth enforcement (401/403/404).
- * GroupVisibilitiesController inherits InputBaseController<GroupResource>, restricting
- * inherited mutations (POST/DELETE) to Admin/Authorised.
+ * GroupVisibilitiesController is Admin only at class level, reads included.
  * Full creation roundtrip is skipped as it requires an existing AppUser and Group.
  */
 
@@ -45,12 +44,22 @@ public class GroupVisibilitiesControllerTests : ApiTestBase
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
-    // ── GET list ────────────────────────────────────────────────────────────
+    // ── GET list (Admin only since 2026-08-14) ──────────────────────────────
 
     [Test]
-    public async Task GetSimpleList_WithUserRole_ReturnsOk()
+    public async Task GetSimpleList_WithUserRole_Returns403()
     {
         AuthorizeAs(Roles.User);
+
+        var response = await Client.GetAsync($"{BaseRoute}/GetSimpleList");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Test]
+    public async Task GetSimpleList_WithAdminRole_ReturnsOk()
+    {
+        AuthorizeAs(Roles.Admin);
 
         var response = await Client.GetAsync($"{BaseRoute}/GetSimpleList");
 
@@ -60,9 +69,20 @@ public class GroupVisibilitiesControllerTests : ApiTestBase
     }
 
     [Test]
-    public async Task GetPersonalSimpleList_WithUserRole_ReturnsOk()
+    public async Task GetPersonalSimpleList_WithUserRole_Returns403()
     {
         AuthorizeAs(Roles.User);
+        var userId = Guid.NewGuid().ToString();
+
+        var response = await Client.GetAsync($"{BaseRoute}/GetSimpleList/{userId}");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Test]
+    public async Task GetPersonalSimpleList_WithAdminRole_ReturnsOk()
+    {
+        AuthorizeAs(Roles.Admin);
         var userId = Guid.NewGuid().ToString();
 
         var response = await Client.GetAsync($"{BaseRoute}/GetSimpleList/{userId}");
@@ -75,7 +95,7 @@ public class GroupVisibilitiesControllerTests : ApiTestBase
     [Test]
     public async Task GetGroupVisibility_UnknownId_Returns404()
     {
-        AuthorizeAs(Roles.User);
+        AuthorizeAs(Roles.Admin);
 
         var response = await Client.GetAsync($"{BaseRoute}/{Guid.NewGuid()}");
 

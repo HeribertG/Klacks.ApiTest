@@ -89,9 +89,19 @@ public class AgentSoulControllerTests : ApiTestBase
     // ── DELETE deactivate ───────────────────────────────────────────────────
 
     [Test]
-    public async Task DeactivateSoulSection_WithUserRole_WithUnknownAgent_ReturnsNoContentOrNotFound()
+    public async Task DeactivateSoulSection_WithUserRole_Returns403()
     {
         AuthorizeAs(Roles.User);
+
+        var response = await Client.DeleteAsync(SectionRoute(Guid.NewGuid(), SectionType));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Test]
+    public async Task DeactivateSoulSection_WithAdminRole_WithUnknownAgent_ReturnsNoContentOrNotFound()
+    {
+        AuthorizeAs(Roles.Admin);
 
         var response = await Client.DeleteAsync(SectionRoute(Guid.NewGuid(), SectionType));
 

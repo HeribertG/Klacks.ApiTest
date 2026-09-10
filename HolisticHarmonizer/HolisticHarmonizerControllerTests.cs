@@ -4,7 +4,7 @@
  * HTTP-level tests for HolisticHarmonizerController (api/backend/HolisticHarmonizer).
  * Covers auth enforcement (401) and happy-path responses for Start, Cancel,
  * CheckAllModels, and ApplyAsScenario endpoints.
- * HolisticHarmonizerController inherits BaseController (JWT-required, no role restriction).
+ * HolisticHarmonizerController is Admin only (autofill admin gate 2026-08-05).
  */
 
 namespace Klacks.ApiTest.HolisticHarmonizer;
@@ -64,9 +64,27 @@ public class HolisticHarmonizerControllerTests : ApiTestBase
     // ── Start ────────────────────────────────────────────────────────────────
 
     [Test]
-    public async Task Start_WithUserRole_ReturnsJobId()
+    public async Task Start_WithUserRole_Returns403()
     {
         AuthorizeAs(Roles.User);
+        var payload = new
+        {
+            PeriodFrom = new DateOnly(2026, 1, 1),
+            PeriodUntil = new DateOnly(2026, 1, 31),
+            AgentIds = Array.Empty<Guid>(),
+            AnalyseToken = (Guid?)null,
+            Language = "en"
+        };
+
+        var response = await Client.PostAsJsonAsync($"{BaseRoute}/Start", payload);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Test]
+    public async Task Start_WithAdminRole_ReturnsJobId()
+    {
+        AuthorizeAs(Roles.Admin);
         var payload = new
         {
             PeriodFrom = new DateOnly(2026, 1, 1),
@@ -89,7 +107,7 @@ public class HolisticHarmonizerControllerTests : ApiTestBase
     [Test]
     public async Task Cancel_UnknownJobId_ReturnsFalse()
     {
-        AuthorizeAs(Roles.User);
+        AuthorizeAs(Roles.Admin);
         var payload = new { JobId = Guid.NewGuid() };
 
         var response = await Client.PostAsJsonAsync($"{BaseRoute}/Cancel", payload);
@@ -103,9 +121,9 @@ public class HolisticHarmonizerControllerTests : ApiTestBase
     // ── CheckAllModels ────────────────────────────────────────────────────────
 
     [Test]
-    public async Task CheckAllModels_WithUserRole_ReturnsModelList()
+    public async Task CheckAllModels_WithAdminRole_ReturnsModelList()
     {
-        AuthorizeAs(Roles.User);
+        AuthorizeAs(Roles.Admin);
 
         var response = await Client.PostAsync($"{BaseRoute}/CheckAllModels", null);
 

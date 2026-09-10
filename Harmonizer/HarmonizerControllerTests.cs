@@ -3,8 +3,8 @@
 /**
  * HTTP-level tests for HarmonizerController (api/backend/Harmonizer).
  * Covers auth enforcement (401) and minimal request validation for Start, Cancel,
- * and ApplyAsScenario endpoints. Start and Cancel always return 200; ApplyAsScenario
- * returns 404 for an unknown job id.
+ * and ApplyAsScenario endpoints. The controller is Admin only (autofill admin gate 2026-08-05);
+ * Start and Cancel return 200 for an admin, ApplyAsScenario returns 404 for an unknown job id.
  */
 
 namespace Klacks.ApiTest.Harmonizer;
@@ -55,9 +55,26 @@ public class HarmonizerControllerTests : ApiTestBase
     // ── Start ────────────────────────────────────────────────────────────────
 
     [Test]
-    public async Task Start_WithUserRole_ReturnsJobId()
+    public async Task Start_WithUserRole_Returns403()
     {
         AuthorizeAs(Roles.User);
+        var payload = new
+        {
+            PeriodFrom = new DateOnly(2026, 1, 1),
+            PeriodUntil = new DateOnly(2026, 1, 31),
+            AgentIds = Array.Empty<Guid>(),
+            AnalyseToken = (Guid?)null
+        };
+
+        var response = await Client.PostAsJsonAsync($"{BaseRoute}/Start", payload);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Test]
+    public async Task Start_WithAdminRole_ReturnsJobId()
+    {
+        AuthorizeAs(Roles.Admin);
         var payload = new
         {
             PeriodFrom = new DateOnly(2026, 1, 1),
@@ -79,7 +96,7 @@ public class HarmonizerControllerTests : ApiTestBase
     [Test]
     public async Task Cancel_UnknownJobId_ReturnsFalse()
     {
-        AuthorizeAs(Roles.User);
+        AuthorizeAs(Roles.Admin);
         var payload = new { JobId = Guid.NewGuid() };
 
         var response = await Client.PostAsJsonAsync($"{BaseRoute}/Cancel", payload);

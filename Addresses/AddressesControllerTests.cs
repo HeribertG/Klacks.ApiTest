@@ -227,7 +227,7 @@ public class AddressesControllerTests : ApiTestBase
         Zip = "3011",
         Country = "CH",
         Type = AddressTypeEnum.Employee,
-        ValidFrom = DateTime.Today,
+        ValidFrom = DateTime.UtcNow.Date,
     };
 
     private async Task<Guid> CreateClientAndGetIdAsync(string name)

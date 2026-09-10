@@ -6,6 +6,7 @@
  */
 
 using Klacks.Api.Application.DTOs.Schedules;
+using Klacks.Api.Application.DTOs.Staffs;
 
 namespace Klacks.ApiTest.Shifts;
 
@@ -14,6 +15,36 @@ public class ShiftsControllerTests : ApiTestBase
 {
     private const string BaseRoute = "/api/backend/Shifts";
     private readonly string TestPrefix = $"TEST_ApiTest_{Guid.NewGuid():N}_";
+
+    // A draft order (OriginalOrder) must name its customer since 2026-09-07 (ClientlessOrderRules).
+    private Guid _customerId;
+
+    [OneTimeSetUp]
+    public async Task FixtureSetUp()
+    {
+        AuthorizeAs(Roles.Admin);
+
+        var customerPayload = new ClientResource
+        {
+            Name = $"{TestPrefix}Customer",
+            FirstName = "Shift",
+            Gender = GenderEnum.Male,
+            LegalEntity = false,
+            SkipAddressValidation = true,
+        };
+        var response = await Client.PostAsJsonAsync("/api/backend/Clients", customerPayload);
+        response.EnsureSuccessStatusCode();
+        _customerId = (await response.Content.ReadFromJsonAsync<ClientResource>())!.Id;
+    }
+
+    [OneTimeTearDown]
+    public async Task FixtureTearDown()
+    {
+        AuthorizeAs(Roles.Admin);
+
+        if (_customerId != Guid.Empty)
+            await Client.DeleteAsync($"/api/backend/Clients/{_customerId}");
+    }
 
     [TearDown]
     public new async Task BaseTearDown()
@@ -115,10 +146,11 @@ public class ShiftsControllerTests : ApiTestBase
 
     // ── Helpers ─────────────────────────────────────────────────────────────
 
-    private static ShiftResource MinimalShift(string name) => new()
+    private ShiftResource MinimalShift(string name) => new()
     {
         Name = name,
         Abbreviation = "TST",
+        ClientId = _customerId,
         FromDate = new DateOnly(2026, 1, 1),
         StartShift = new TimeOnly(8, 0),
         EndShift = new TimeOnly(16, 0),

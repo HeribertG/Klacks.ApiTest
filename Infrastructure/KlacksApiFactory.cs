@@ -3,9 +3,11 @@
 /**
  * In-process test server factory for HTTP-level API tests.
  * Replaces the JWT signing key with a test secret so tokens generated
- * in tests are accepted by the running pipeline without touching the real key store.
+ * in tests are accepted by the running pipeline without touching the real key store, and swaps the
+ * Nominatim geocoding for an offline fake so address endpoints do not depend on the network.
  */
 
+using Klacks.Api.Domain.Interfaces.RouteOptimization;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Hosting;
@@ -39,6 +41,8 @@ public class KlacksApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("ConnectionStrings:DefaultConnection", TestConnectionString);
         builder.ConfigureServices(services =>
         {
+            services.AddSingleton<IGeocodingService, FakeGeocodingService>();
+
             services.Configure<AuthenticationOptions>(options =>
             {
                 options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;

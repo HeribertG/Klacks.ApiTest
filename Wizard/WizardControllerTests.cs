@@ -4,7 +4,7 @@
  * HTTP-level tests for WizardController (api/backend/Wizard).
  * Covers auth enforcement (401) and minimal-payload responses for Start, Cancel,
  * Apply (unknown job → 404), and ApplyAsScenario (unknown job → 404).
- * WizardController inherits BaseController (JWT-required, no role restriction).
+ * WizardController is Admin only (autofill admin gate 2026-08-05).
  */
 
 namespace Klacks.ApiTest.Wizard;
@@ -59,9 +59,20 @@ public class WizardControllerTests : ApiTestBase
     // ── Start ────────────────────────────────────────────────────────────────
 
     [Test]
-    public async Task Start_WithUserRole_ReturnsJobId()
+    public async Task Start_WithUserRole_Returns403()
     {
         AuthorizeAs(Roles.User);
+        var payload = MinimalStartRequest();
+
+        var response = await Client.PostAsJsonAsync($"{BaseRoute}/Start", payload);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Test]
+    public async Task Start_WithAdminRole_ReturnsJobId()
+    {
+        AuthorizeAs(Roles.Admin);
         var payload = MinimalStartRequest();
 
         var response = await Client.PostAsJsonAsync($"{BaseRoute}/Start", payload);
@@ -77,7 +88,7 @@ public class WizardControllerTests : ApiTestBase
     [Test]
     public async Task Cancel_UnknownJobId_ReturnsFalse()
     {
-        AuthorizeAs(Roles.User);
+        AuthorizeAs(Roles.Admin);
         var payload = new { JobId = Guid.NewGuid() };
 
         var response = await Client.PostAsJsonAsync($"{BaseRoute}/Cancel", payload);

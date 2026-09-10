@@ -43,6 +43,7 @@ public class BreaksControllerTests : ApiTestBase
         {
             Name = $"{TestPrefix}Shift",
             Abbreviation = "BKT",
+            ClientId = _clientId,
             FromDate = new DateOnly(2026, 1, 1),
             StartShift = new TimeOnly(8, 0),
             EndShift = new TimeOnly(16, 0),

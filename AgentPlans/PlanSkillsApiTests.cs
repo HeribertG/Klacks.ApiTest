@@ -63,7 +63,7 @@ public class PlanSkillsApiTests : ApiTestBase
             UserId = userId,
             TenantId = Guid.Empty,
             UserName = "apitest",
-            UserPermissions = new List<string>()
+            UserPermissions = new List<string> { Permissions.CanPlan }
         };
         var invocation = new SkillInvocation
         {
