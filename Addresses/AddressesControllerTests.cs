@@ -151,6 +151,51 @@ public class AddressesControllerTests : ApiTestBase
     }
 
     [Test]
+    public async Task PostAddress_WithNonUtcOffsetDate_Returns400WithUtcHint()
+    {
+        AuthorizeAs(Roles.Admin);
+        var clientId = await CreateClientAndGetIdAsync($"{TestPrefix}PostAddrOffset");
+        var payload = new
+        {
+            clientId,
+            city = "Bern",
+            zip = "3011",
+            country = "CH",
+            type = (int)AddressTypeEnum.Employee,
+            validFrom = "2026-09-10T00:00:00+02:00",
+        };
+
+        var response = await Client.PostAsJsonAsync(BaseRoute, payload);
+        var body = await response.Content.ReadAsStringAsync();
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        body.ShouldContain("must be sent in UTC");
+        body.ShouldNotContain("Database constraint violation");
+    }
+
+    [Test]
+    public async Task PostAddress_WithUtcDate_KeepsTheCalendarDay()
+    {
+        AuthorizeAs(Roles.Admin);
+        var clientId = await CreateClientAndGetIdAsync($"{TestPrefix}PostAddrUtc");
+        var payload = new
+        {
+            clientId,
+            city = "Bern",
+            zip = "3011",
+            country = "CH",
+            type = (int)AddressTypeEnum.Employee,
+            validFrom = "2026-09-10T00:00:00Z",
+        };
+
+        var response = await Client.PostAsJsonAsync(BaseRoute, payload);
+        var created = await response.Content.ReadFromJsonAsync<AddressResource>();
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        created!.ValidFrom!.Value.ToUniversalTime().Date.ShouldBe(new DateTime(2026, 9, 10));
+    }
+
+    [Test]
     public async Task PostAddress_WithAuthorisedRole_ReturnsCreatedAddress()
     {
         AuthorizeAs(Roles.Authorised);

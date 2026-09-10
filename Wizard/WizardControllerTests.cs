@@ -127,10 +127,13 @@ public class WizardControllerTests : ApiTestBase
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
+    // A period no other fixture uses: AutoWizardControllerTests starts a Wizard1 run for January 2026
+    // with no agents on the shared host, and AutofillStartGuard refuses an identical selection with
+    // 409 while that run is still going.
     private static object MinimalStartRequest() => new
     {
-        PeriodFrom = new DateOnly(2026, 1, 1),
-        PeriodUntil = new DateOnly(2026, 1, 31),
+        PeriodFrom = new DateOnly(2026, 3, 1),
+        PeriodUntil = new DateOnly(2026, 3, 31),
         AgentIds = Array.Empty<Guid>(),
         ShiftIds = Array.Empty<Guid>(),
         AnalyseToken = (Guid?)null,
