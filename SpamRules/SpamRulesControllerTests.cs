@@ -35,9 +35,21 @@ public class SpamRulesControllerTests : ApiTestBase
     }
 
     [Test]
-    public async Task GetSpamRules_WithUserRole_ReturnsOk()
+    public async Task GetSpamRules_WithUserRole_Returns403()
     {
+        // Option B (2026-09-12): spam rule management is settings-level and pinned to Admin only
+        // (not part of the Planner floor, nor open to Authorised), so a roleless User is forbidden here.
         AuthorizeAs(Roles.User);
+
+        var response = await Client.GetAsync(BaseRoute);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Test]
+    public async Task GetSpamRules_WithAdminRole_ReturnsOk()
+    {
+        AuthorizeAs(Roles.Admin);
 
         var response = await Client.GetAsync(BaseRoute);
 
