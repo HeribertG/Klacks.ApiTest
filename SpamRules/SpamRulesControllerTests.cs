@@ -55,9 +55,24 @@ public class SpamRulesControllerTests : ApiTestBase
     }
 
     [Test]
-    public async Task PostSpamRule_WithUserRole_ReturnsCreated()
+    public async Task PostSpamRule_WithUserRole_Returns403()
     {
+        // Option B (2026-09-12): spam rule management is settings-level and pinned to Admin only
+        // (not part of the Planner floor, nor open to Authorised), so a roleless User is forbidden here.
         AuthorizeAs(Roles.User);
+        var payload = new CreateSpamRuleCommand(SpamRuleType.SenderContains, $"{TestPrefix}Forbidden");
+
+        var response = await Client.PostAsJsonAsync(BaseRoute, payload);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Test]
+    public async Task PostSpamRule_WithAdminRole_ReturnsCreated()
+    {
+        // Option B (2026-09-12): spam rule management is settings-level and pinned to Admin only
+        // (not part of the Planner floor, nor open to Authorised), so a roleless User is forbidden here.
+        AuthorizeAs(Roles.Admin);
         var payload = new CreateSpamRuleCommand(SpamRuleType.SenderContains, $"{TestPrefix}Post");
 
         var response = await Client.PostAsJsonAsync(BaseRoute, payload);
@@ -78,9 +93,23 @@ public class SpamRulesControllerTests : ApiTestBase
     }
 
     [Test]
+    public async Task DeleteSpamRule_WithUserRole_Returns403()
+    {
+        // Option B (2026-09-12): DeleteSpamRule is pinned to Admin only, so a roleless User is
+        // forbidden here.
+        AuthorizeAs(Roles.User);
+
+        var response = await Client.DeleteAsync($"{BaseRoute}/{Guid.NewGuid()}");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Test]
     public async Task DeleteSpamRule_UnknownId_Returns404OrOk()
     {
-        AuthorizeAs(Roles.User);
+        // Option B (2026-09-12): DeleteSpamRule is pinned to Admin only, so a roleless User would be
+        // forbidden (403) before ever reaching the unknown-id business behaviour this test targets.
+        AuthorizeAs(Roles.Admin);
 
         var response = await Client.DeleteAsync($"{BaseRoute}/{Guid.NewGuid()}");
 

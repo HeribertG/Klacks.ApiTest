@@ -130,14 +130,18 @@ public class BreakPlaceholdersControllerTests : ApiTestBase
     }
 
     [Test]
-    public async Task PostBreakPlaceholder_WithUserRole_Returns403()
+    public async Task PostBreakPlaceholder_WithUserRole_WithoutMembership_Returns400()
     {
+        // Option B (2026-09-12): break placeholders are an absence write, part of the Planner floor -
+        // the controller no longer restricts Post/Put/Delete to Admin/Authorised (it was an
+        // InputBaseController<T> before). A roleless caller now hits the same missing-membership
+        // validation as Admin does above, not a permission check, so this is 400, not 403.
         AuthorizeAs(Roles.User);
         var payload = MinimalBreakPlaceholder();
 
         var response = await Client.PostAsJsonAsync(BaseRoute, payload);
 
-        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
     // ── PUT ─────────────────────────────────────────────────────────────────

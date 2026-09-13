@@ -39,6 +39,19 @@ public class ClientAvailabilitiesControllerTests : ApiTestBase
     }
 
     [Test]
+    public async Task BulkUpdate_WithUserRole_Returns403()
+    {
+        // Option B (2026-09-12): BulkUpdate is pinned to Admin/Authorised - it is not part of the
+        // Planner floor - so a roleless User is forbidden here.
+        AuthorizeAs(Roles.User);
+        var payload = new ClientAvailabilityBulkRequest { Items = [] };
+
+        var response = await Client.PostAsJsonAsync($"{BaseRoute}/Bulk", payload);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Test]
     public async Task GetClients_WithoutToken_Returns401()
     {
         var payload = new ClientAvailabilityClientFilter
@@ -70,9 +83,12 @@ public class ClientAvailabilitiesControllerTests : ApiTestBase
     // ── POST Bulk ────────────────────────────────────────────────────────────
 
     [Test]
-    public async Task BulkUpdate_EmptyItems_WithUserRole_ReturnsOkWithZero()
+    public async Task BulkUpdate_EmptyItems_WithAuthorisedRole_ReturnsOkWithZero()
     {
-        AuthorizeAs(Roles.User);
+        // Option B (2026-09-12): BulkUpdate is pinned to Admin/Authorised - it is not part of the
+        // Planner floor - so a roleless User is now forbidden here (403) instead of reaching this
+        // OK-with-zero business behaviour. Authorised is the lowest role that still can.
+        AuthorizeAs(Roles.Authorised);
         var payload = new ClientAvailabilityBulkRequest { Items = [] };
 
         var response = await Client.PostAsJsonAsync($"{BaseRoute}/Bulk", payload);
