@@ -5,14 +5,27 @@
  * Replaces the JWT signing key with a test secret so tokens generated
  * in tests are accepted by the running pipeline without touching the real key store, and swaps the
  * Nominatim geocoding for an offline fake so address endpoints do not depend on the network.
+ * The host boots as "Development", whose appsettings turn the Slack owner bridge on, so it also switches
+ * off everything the host would otherwise start on its own (same principle as
+ * Klacks.IntegrationTest/HardenedTestWebApplicationFactory): every bool flag of BackgroundServiceOptions
+ * plus the messaging plugin's inbound polling, the ONNX warm-up and the knowledge index sync, which no
+ * API test reads. The switches go through UseSetting because Program.cs reads BackgroundServiceOptions
+ * while it runs its top-level code, before ConfigureAppConfiguration callbacks apply. Migrations and the
+ * seed set run in that top-level code too, so a fresh database is still brought up completely.
  */
 
+using System.Reflection;
+using Klacks.Api.Application.Configuration;
 using Klacks.Api.Domain.Interfaces.RouteOptimization;
+using Klacks.Api.KnowledgeIndex.Application.Constants;
+using Klacks.Api.KnowledgeIndex.Application.Interfaces;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
@@ -35,13 +48,43 @@ public class KlacksApiFactory : WebApplicationFactory<Program>
         + "Command Timeout=60;Timeout=30;Minimum Pool Size=0;Maximum Pool Size=40;"
         + "Connection Idle Lifetime=10;Connection Pruning Interval=5;";
 
+    /// <summary>
+    /// Read by Klacks.Plugin.Messaging's registrar directly from configuration; it is not a property of
+    /// BackgroundServiceOptions, so the reflection over that class does not reach it.
+    /// </summary>
+    public const string InboundMessagePollingSwitch = "InboundMessagePolling";
+
+    private const string TestEnvironment = "Development";
+    private const string ConnectionStringKey = "ConnectionStrings:DefaultConnection";
+
+    /// <summary>
+    /// Every configuration key this host forces to false: each bool flag of BackgroundServiceOptions and
+    /// the messaging plugin's inbound polling switch.
+    /// </summary>
+    public static IReadOnlyList<string> DisabledBackgroundServiceSwitches { get; } =
+        typeof(BackgroundServiceOptions)
+            .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .Where(property => property.PropertyType == typeof(bool))
+            .Select(property => property.Name)
+            .Append(InboundMessagePollingSwitch)
+            .Select(name => ConfigurationPath.Combine(BackgroundServiceOptions.SectionName, name))
+            .ToList();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        builder.UseEnvironment("Development");
-        builder.UseSetting("ConnectionStrings:DefaultConnection", TestConnectionString);
+        builder.UseEnvironment(TestEnvironment);
+        builder.UseSetting(ConnectionStringKey, TestConnectionString);
+        foreach (var key in DisabledBackgroundServiceSwitches)
+        {
+            builder.UseSetting(key, bool.FalseString);
+        }
+
+        builder.UseSetting(KnowledgeIndexConstants.WarmupEnabledConfigKey, bool.FalseString);
         builder.ConfigureServices(services =>
         {
             services.AddSingleton<IGeocodingService, FakeGeocodingService>();
+            services.RemoveAll<IKnowledgeIndexSynchronizer>();
+            services.AddScoped<IKnowledgeIndexSynchronizer, NoOpKnowledgeIndexSynchronizer>();
 
             services.Configure<AuthenticationOptions>(options =>
             {
