@@ -93,4 +93,30 @@ public class ChatControllerTests : ApiTestBase
 
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
+
+    [Test]
+    public async Task Chat_PostCancelTurn_WithoutToken_Returns401()
+    {
+        var response = await Client.PostAsJsonAsync($"{BaseRoute}/turns/{Guid.NewGuid()}/cancel", new { });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+    }
+
+    [Test]
+    public async Task Chat_PostCancelTurn_WithANonGuidSegment_Returns404()
+    {
+        var response = await Client.PostAsJsonAsync($"{BaseRoute}/turns/not-a-guid/cancel", new { });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+    }
+
+    [Test]
+    public async Task Chat_PostCancelTurn_ForAnUnknownTurnWithAValidToken_Returns404()
+    {
+        AuthorizeAs(Roles.Admin);
+
+        var response = await Client.PostAsJsonAsync($"{BaseRoute}/turns/{Guid.NewGuid()}/cancel", new { });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+    }
 }
