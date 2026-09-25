@@ -111,12 +111,23 @@ public class ChatControllerTests : ApiTestBase
     }
 
     [Test]
-    public async Task Chat_PostCancelTurn_ForAnUnknownTurnWithAValidToken_Returns404()
+    public async Task Chat_PostCancelTurn_ForAnUnknownTurnWithAValidToken_Returns404FromTheAction()
     {
         AuthorizeAs(Roles.Admin);
 
         var response = await Client.PostAsJsonAsync($"{BaseRoute}/turns/{Guid.NewGuid()}/cancel", new { });
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        response.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("application/problem+json");
+    }
+
+    [Test]
+    public async Task Chat_GetCancelTurn_WithAValidToken_Returns405BecauseTheRouteExistsForPostOnly()
+    {
+        AuthorizeAs(Roles.Admin);
+
+        var response = await Client.GetAsync($"{BaseRoute}/turns/{Guid.NewGuid()}/cancel");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.MethodNotAllowed);
     }
 }
