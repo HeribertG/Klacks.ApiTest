@@ -3,9 +3,14 @@
 /**
  * Base class for all API tests.
  * Provides a shared KlacksApiFactory, an HttpClient, a DataBaseContext,
- * and helpers for generating signed JWT tokens per role.
+ * and helpers for generating signed JWT tokens per role. AuthorizeAs also persists a matching AppUser
+ * (and its role membership), because role checks such as the group visibility scope read the roles
+ * from the database, not from the token claim.
  */
 
+using Klacks.Api.Domain.Models.Authentification;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -18,6 +23,10 @@ public abstract class ApiTestBase
     protected KlacksApiFactory Factory = null!;
     protected HttpClient Client = null!;
     protected DataBaseContext DbContext = null!;
+
+    private const string TestUserNamePrefix = "INTEGRATION_TEST_APITEST_";
+    private const string TestUserEmailDomain = "@apitest.klacks.local";
+    private readonly List<string> _createdUserIds = [];
 
     private static readonly string ConnectionString =
         Environment.GetEnvironmentVariable("DATABASE_URL")
@@ -60,13 +69,65 @@ public abstract class ApiTestBase
     {
         DbContext?.Dispose();
         Client.DefaultRequestHeaders.Remove("Authorization");
+        DeleteCreatedUsersAsync().GetAwaiter().GetResult();
     }
 
     protected void AuthorizeAs(string role)
     {
-        var token = GenerateToken(Guid.NewGuid().ToString(), role);
+        var userId = CreateUserAsync(role).GetAwaiter().GetResult();
+        var token = GenerateToken(userId, role);
         Client.DefaultRequestHeaders.Remove("Authorization");
         Client.DefaultRequestHeaders.Add("Authorization", $"Bearer {token}");
+    }
+
+    private async Task<string> CreateUserAsync(string role)
+    {
+        using var scope = Factory.Services.CreateScope();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
+        var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+
+        var userId = Guid.NewGuid().ToString();
+        var user = new AppUser
+        {
+            Id = userId,
+            UserName = TestUserNamePrefix + userId,
+            Email = TestUserNamePrefix + userId + TestUserEmailDomain,
+            FirstName = "Test",
+            LastName = "User",
+        };
+
+        var created = await userManager.CreateAsync(user);
+        created.Succeeded.ShouldBeTrue(string.Join("; ", created.Errors.Select(e => e.Description)));
+        _createdUserIds.Add(userId);
+
+        if (await roleManager.RoleExistsAsync(role))
+        {
+            var added = await userManager.AddToRoleAsync(user, role);
+            added.Succeeded.ShouldBeTrue(string.Join("; ", added.Errors.Select(e => e.Description)));
+        }
+
+        return userId;
+    }
+
+    private async Task DeleteCreatedUsersAsync()
+    {
+        if (_createdUserIds.Count == 0)
+        {
+            return;
+        }
+
+        using var scope = Factory.Services.CreateScope();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
+        foreach (var userId in _createdUserIds)
+        {
+            var user = await userManager.FindByIdAsync(userId);
+            if (user is not null)
+            {
+                await userManager.DeleteAsync(user);
+            }
+        }
+
+        _createdUserIds.Clear();
     }
 
     private static string GenerateToken(string userId, string? role = null)

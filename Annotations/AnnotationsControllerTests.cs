@@ -39,18 +39,18 @@ public class AnnotationsControllerTests : ApiTestBase
     }
 
     [Test]
-    public async Task PostAnnotation_WithUserRole_UnknownClient_Returns400()
+    public async Task PostAnnotation_WithUserRole_UnknownClient_Returns404()
     {
         // Option B (2026-09-12): CanEditClientNotes is part of Permissions.PlannerFloor, so a caller
-        // without any role is no longer blocked by the permission check on this write. Posting for a
-        // client that does not exist now fails later, on the ClientId foreign key, mapped to 400 by
-        // ErrorHandlingMiddleware's DbUpdateException handler - not on the permission check with 403.
+        // without any role passes the permission check on this write. Since 2026-10-01 group visibility
+        // is a security boundary: a client the caller cannot see - unknown or hidden - is answered
+        // exactly like a missing client, with 404, before the ClientId foreign key is reached.
         AuthorizeAs(Roles.User);
         var payload = MinimalAnnotation(Guid.NewGuid());
 
         var response = await Client.PostAsJsonAsync(BaseRoute, payload);
 
-        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
     [Test]
