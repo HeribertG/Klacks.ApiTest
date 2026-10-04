@@ -25,9 +25,9 @@ public class ReceivedEmailControllerTests : ApiTestBase
     }
 
     [Test]
-    public async Task GetList_WithUserRole_Returns200()
+    public async Task GetList_WithAuthorisedRole_Returns200()
     {
-        AuthorizeAs(Roles.User);
+        AuthorizeAs(Roles.Authorised);
 
         var response = await Client.GetAsync($"{BaseRoute}/List");
 
@@ -45,9 +45,9 @@ public class ReceivedEmailControllerTests : ApiTestBase
     }
 
     [Test]
-    public async Task GetUnreadCount_WithUserRole_Returns200()
+    public async Task GetUnreadCount_WithAuthorisedRole_Returns200()
     {
-        AuthorizeAs(Roles.User);
+        AuthorizeAs(Roles.Authorised);
 
         var response = await Client.GetAsync($"{BaseRoute}/UnreadCount");
 
@@ -65,9 +65,9 @@ public class ReceivedEmailControllerTests : ApiTestBase
     }
 
     [Test]
-    public async Task GetGroupTree_WithUserRole_Returns200()
+    public async Task GetGroupTree_WithAuthorisedRole_Returns200()
     {
-        AuthorizeAs(Roles.User);
+        AuthorizeAs(Roles.Authorised);
 
         var response = await Client.GetAsync($"{BaseRoute}/GroupTree");
 
@@ -87,7 +87,7 @@ public class ReceivedEmailControllerTests : ApiTestBase
     [Test]
     public async Task GetById_UnknownId_Returns404()
     {
-        AuthorizeAs(Roles.User);
+        AuthorizeAs(Roles.Authorised);
 
         var response = await Client.GetAsync($"{BaseRoute}/{Guid.NewGuid()}");
 
@@ -122,5 +122,15 @@ public class ReceivedEmailControllerTests : ApiTestBase
         var response = await Client.DeleteAsync($"{BaseRoute}/{Guid.NewGuid()}");
 
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+    }
+
+    [Test]
+    public async Task GetList_WithUserRole_Returns403()
+    {
+        AuthorizeAs(Roles.User);
+
+        var response = await Client.GetAsync($"{BaseRoute}/List");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 }

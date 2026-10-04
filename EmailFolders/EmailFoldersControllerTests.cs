@@ -35,9 +35,9 @@ public class EmailFoldersControllerTests : ApiTestBase
     }
 
     [Test]
-    public async Task GetFolders_WithUserRole_ReturnsOk()
+    public async Task GetFolders_WithAuthorisedRole_ReturnsOk()
     {
-        AuthorizeAs(Roles.User);
+        AuthorizeAs(Roles.Authorised);
 
         var response = await Client.GetAsync(BaseRoute);
 
@@ -74,12 +74,32 @@ public class EmailFoldersControllerTests : ApiTestBase
     }
 
     [Test]
-    public async Task DeleteFolder_UnknownId_ReturnsOkOrNotFound()
+    public async Task DeleteFolder_UnknownId_WithAdminRole_ReturnsOkOrNotFound()
     {
-        AuthorizeAs(Roles.User);
+        AuthorizeAs(Roles.Admin);
 
         var response = await Client.DeleteAsync($"{BaseRoute}/{Guid.NewGuid()}");
 
         response.StatusCode.ShouldBeOneOf(HttpStatusCode.OK, HttpStatusCode.NotFound);
+    }
+
+    [Test]
+    public async Task GetFolders_WithUserRole_Returns403()
+    {
+        AuthorizeAs(Roles.User);
+
+        var response = await Client.GetAsync(BaseRoute);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Test]
+    public async Task DeleteFolder_WithAuthorisedRole_Returns403()
+    {
+        AuthorizeAs(Roles.Authorised);
+
+        var response = await Client.DeleteAsync($"{BaseRoute}/{Guid.NewGuid()}");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 }
