@@ -7,6 +7,7 @@
  * coordinates; no state is returned, so the state cross-check in the address validation never fires.
  */
 
+using Klacks.Api.Domain.Enums;
 using Klacks.Api.Domain.Interfaces.RouteOptimization;
 
 namespace Klacks.ApiTest.Infrastructure;
@@ -40,4 +41,10 @@ public class FakeGeocodingService : IGeocodingService
     public Task<List<AddressSuggestion>> GetAddressSuggestionsAsync(
         string? street, string postalCode, string city, string country, int limit = 5) =>
         Task.FromResult(new List<AddressSuggestion>());
+
+    public Task<GeocodingSearchResult> SearchAsync(
+        string query, string? language, CancellationToken cancellationToken = default) =>
+        Task.FromResult(new GeocodingSearchResult(GeocodingSearchOutcome.Found, Latitude, Longitude, query));
+
+    public bool IsEnabled => true;
 }
