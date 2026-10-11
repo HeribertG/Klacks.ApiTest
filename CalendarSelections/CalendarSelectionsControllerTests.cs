@@ -3,7 +3,7 @@
 /**
  * HTTP-level tests for CalendarSelectionsController (api/backend/CalendarSelections).
  * Covers list, get, post, delete — including auth enforcement (401/403/404).
- * CalendarSelectionsController inherits InputBaseController, restricting mutations to Admin/Authorised.
+ * CalendarSelectionsController inherits InputBaseController, but its Post/Put/Delete overrides narrow mutations to Admin.
  */
 
 using Klacks.Api.Application.DTOs.Schedules;
@@ -128,14 +128,14 @@ public class CalendarSelectionsControllerTests : ApiTestBase
     }
 
     [Test]
-    public async Task PostCalendarSelection_WithAuthorisedRole_ReturnsCreatedCalendarSelection()
+    public async Task PostCalendarSelection_WithAuthorisedRole_Returns403()
     {
         AuthorizeAs(Roles.Authorised);
         var payload = MinimalCalendarSelection($"{TestPrefix}PostAuth");
 
         var response = await Client.PostAsJsonAsync(BaseRoute, payload);
 
-        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
     // ── DELETE ──────────────────────────────────────────────────────────────

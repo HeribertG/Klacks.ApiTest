@@ -3,7 +3,7 @@
 /**
  * HTTP-level tests for SelectedCalendarsController (api/backend/SelectedCalendars).
  * Covers get, post, delete — including auth enforcement (401/403/404).
- * SelectedCalendarsController inherits InputBaseController, restricting mutations to Admin/Authorised.
+ * SelectedCalendarsController inherits InputBaseController, but its Post/Put/Delete overrides narrow mutations to Admin.
  * There is no parameterless list GET; a parent CalendarSelection is created once per fixture.
  * SelectedCalendars are cleaned up by CalendarSelectionId.
  */
@@ -126,14 +126,14 @@ public class SelectedCalendarsControllerTests : ApiTestBase
     }
 
     [Test]
-    public async Task PostSelectedCalendar_WithAuthorisedRole_ReturnsCreatedSelectedCalendar()
+    public async Task PostSelectedCalendar_WithAuthorisedRole_Returns403()
     {
         AuthorizeAs(Roles.Authorised);
         var payload = MinimalSelectedCalendar();
 
         var response = await Client.PostAsJsonAsync(BaseRoute, payload);
 
-        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
     // ── DELETE ──────────────────────────────────────────────────────────────
