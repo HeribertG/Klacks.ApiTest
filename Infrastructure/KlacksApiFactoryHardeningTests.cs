@@ -2,9 +2,10 @@
 
 /**
  * Guards the hardened API test host, analogous to Klacks.IntegrationTest/HardenedTestHostTests: the shared
- * KlacksApiFactory must not run a single hosted service of Klacks' own beyond the four that have no switch
+ * KlacksApiFactory must not run a single hosted service of Klacks' own beyond the five that have no switch
  * and neither call out nor write (ONNX warm-up, which reads its disable flag and returns, the ONNX idle
- * unloader, the schedule time zone check and the messaging field encryption bootstrap). A background service
+ * unloader, the schedule time zone check, the geo services startup reporter, which only logs the
+ * configuration, and the messaging field encryption bootstrap). A background service
  * added later without a BackgroundServices flag, or a flag the factory's reflection does not reach, turns
  * this red instead of quietly talking to Slack, Telegram, IMAP, Nominatim or an LLM provider from the next
  * test run. Only Klacks' own types are checked; framework and library services are not switchable here.
@@ -14,6 +15,7 @@
  */
 
 using Klacks.Api.Application.Configuration;
+using Klacks.Api.Infrastructure.Services;
 using Klacks.Api.Infrastructure.Services.Schedules;
 using Klacks.Api.KnowledgeIndex.Application.Constants;
 using Klacks.Api.KnowledgeIndex.Application.Interfaces;
@@ -36,6 +38,7 @@ public class KlacksApiFactoryHardeningTests
         nameof(OnnxWarmupService),
         nameof(OnnxSessionIdleUnloadService),
         nameof(ScheduleTimeZoneStartupCheckService),
+        nameof(GeoServicesStartupReporter),
         MessagingEncryptionInitializerName
     };
 
