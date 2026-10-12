@@ -2,8 +2,9 @@
 
 /**
  * HTTP-level tests for ExpensesController (api/backend/Expenses).
- * Covers auth enforcement (401/403), GET list, GET single.
- * Expenses require a Work FK; happy-path POST is omitted to avoid complex setup.
+ * Covers auth enforcement (401) and the planner floor (role User may POST, PUT and DELETE since the owner
+ * decision of 2026-10-12), GET list, GET single. Expenses require a Work FK; happy-path POST is omitted
+ * to avoid complex setup, so the User POST only proves the role gate is gone.
  */
 
 using Klacks.Api.Application.DTOs.Schedules;
@@ -35,7 +36,7 @@ public class ExpensesControllerTests : ApiTestBase
     }
 
     [Test]
-    public async Task PostExpenses_WithUserRole_Returns403()
+    public async Task PostExpenses_WithUserRole_IsNotForbidden()
     {
         AuthorizeAs(Roles.User);
         var payload = new ExpensesResource
@@ -48,17 +49,18 @@ public class ExpensesControllerTests : ApiTestBase
 
         var response = await Client.PostAsJsonAsync(BaseRoute, payload);
 
-        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        response.StatusCode.ShouldNotBe(HttpStatusCode.Forbidden);
+        response.StatusCode.ShouldNotBe(HttpStatusCode.Unauthorized);
     }
 
     [Test]
-    public async Task DeleteExpenses_WithUserRole_Returns403()
+    public async Task DeleteExpenses_WithUserRole_UnknownId_Returns404()
     {
         AuthorizeAs(Roles.User);
 
         var response = await Client.DeleteAsync($"{BaseRoute}/{Guid.NewGuid()}");
 
-        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
     // ── GET list ────────────────────────────────────────────────────────────

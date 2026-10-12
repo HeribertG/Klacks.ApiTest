@@ -2,7 +2,8 @@
 
 /**
  * HTTP-level tests for ScheduleCommandsController (api/backend/ScheduleCommands).
- * Covers auth enforcement (401/403), GET list, GET single, POST, PUT, DELETE.
+ * Covers auth enforcement (401) and the planner floor (role User may POST, PUT and DELETE since the owner
+ * decision of 2026-10-12), GET list, GET single, POST, PUT, DELETE.
  * A Client is created once per fixture as FK dependency for ScheduleCommands.
  */
 
@@ -68,14 +69,16 @@ public class ScheduleCommandsControllerTests : ApiTestBase
     }
 
     [Test]
-    public async Task PostScheduleCommand_WithUserRole_Returns403()
+    public async Task PostScheduleCommand_WithUserRole_ReturnsCreatedCommand()
     {
         AuthorizeAs(Roles.User);
         var payload = MinimalScheduleCommand();
 
         var response = await Client.PostAsJsonAsync(BaseRoute, payload);
 
-        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var created = await response.Content.ReadFromJsonAsync<ScheduleCommandResource>();
+        created!.Id.ShouldNotBe(Guid.Empty);
     }
 
     // ── GET list ────────────────────────────────────────────────────────────
@@ -125,15 +128,17 @@ public class ScheduleCommandsControllerTests : ApiTestBase
     // ── PUT ─────────────────────────────────────────────────────────────────
 
     [Test]
-    public async Task PutScheduleCommand_WithUserRole_Returns403()
+    public async Task PutScheduleCommand_WithUserRole_ReturnsUpdatedCommand()
     {
         AuthorizeAs(Roles.User);
-        var payload = MinimalScheduleCommand();
-        payload.Id = Guid.NewGuid();
+        var created = await CreateScheduleCommandAsync();
+        created.CommandKeyword = "LATE";
 
-        var response = await Client.PutAsJsonAsync(BaseRoute, payload);
+        var response = await Client.PutAsJsonAsync(BaseRoute, created);
 
-        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var updated = await response.Content.ReadFromJsonAsync<ScheduleCommandResource>();
+        updated!.CommandKeyword.ShouldBe("LATE");
     }
 
     [Test]
@@ -154,13 +159,14 @@ public class ScheduleCommandsControllerTests : ApiTestBase
     // ── DELETE ──────────────────────────────────────────────────────────────
 
     [Test]
-    public async Task DeleteScheduleCommand_WithUserRole_Returns403()
+    public async Task DeleteScheduleCommand_WithUserRole_ReturnsDeletedCommand()
     {
         AuthorizeAs(Roles.User);
+        var created = await CreateScheduleCommandAsync();
 
-        var response = await Client.DeleteAsync($"{BaseRoute}/{Guid.NewGuid()}");
+        var response = await Client.DeleteAsync($"{BaseRoute}/{created.Id}");
 
-        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
     [Test]
