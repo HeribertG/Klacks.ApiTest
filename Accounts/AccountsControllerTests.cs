@@ -83,12 +83,12 @@ public class AccountsControllerTests : ApiTestBase
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
-    // ── ChangePassword (any authenticated) ───────────────────────────────────
+    // ── ChangePasswordUser (any authenticated) ───────────────────────────────
 
     [Test]
-    public async Task ChangePassword_WithoutToken_Returns401()
+    public async Task ChangePasswordUser_WithoutToken_Returns401()
     {
-        var response = await Client.PutAsJsonAsync($"{BaseRoute}/ChangePassword", new { email = "x@x.com", oldPassword = "old", newPassword = "new" });
+        var response = await Client.PostAsJsonAsync($"{BaseRoute}/ChangePasswordUser", new { email = "x@x.com", oldPassword = "old", password = "new" });
 
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }

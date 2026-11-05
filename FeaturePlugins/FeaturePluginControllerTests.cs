@@ -2,7 +2,7 @@
 
 /**
  * HTTP-level tests for FeaturePluginController (api/plugins/features).
- * Covers public GET endpoints, auth enforcement (401/403) for admin-only actions.
+ * Covers auth enforcement: reads need a signed-in user (401), admin-only actions 401/403.
  */
 
 namespace Klacks.ApiTest.FeaturePlugins;
@@ -12,22 +12,22 @@ public class FeaturePluginControllerTests : ApiTestBase
 {
     private const string BaseRoute = "/api/plugins/features";
 
-    // ── Public GET list ──────────────────────────────────────────────────────
+    // ── GET list and detail require a signed-in user ──────────────────────────────────────────────────────
 
     [Test]
-    public async Task GetAllPlugins_WithoutToken_ReturnsOk()
+    public async Task GetAllPlugins_WithoutToken_Returns401()
     {
         var response = await Client.GetAsync(BaseRoute);
 
-        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
 
     [Test]
-    public async Task GetPlugin_WithoutToken_UnknownName_Returns404()
+    public async Task GetPlugin_WithoutToken_Returns401()
     {
         var response = await Client.GetAsync($"{BaseRoute}/nonexistent-plugin");
 
-        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
 
     // ── Admin-only: install ──────────────────────────────────────────────────
