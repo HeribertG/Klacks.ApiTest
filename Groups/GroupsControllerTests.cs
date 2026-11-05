@@ -2,7 +2,7 @@
 
 /**
  * HTTP-level tests for GroupsController (api/backend/Groups).
- * Covers create, get, delete, tree, path, roots, members, and move — including auth enforcement (401/403/404).
+ * Covers create, get, delete, tree, refresh (POST only), path, roots, members, and move — including auth enforcement (401/403/404).
  */
 
 using Klacks.Api.Application.DTOs.Associations;
@@ -100,6 +100,36 @@ public class GroupsControllerTests : ApiTestBase
         var response = await Client.GetAsync($"{BaseRoute}/roots");
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    // ── POST refresh ────────────────────────────────────────────────────────
+
+    [Test]
+    public async Task RefreshTree_WithPost_ReturnsOk()
+    {
+        AuthorizeAs(Roles.User);
+
+        var response = await Client.PostAsync($"{BaseRoute}/refresh", content: null);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Test]
+    public async Task RefreshTree_WithGet_IsNoLongerRouted()
+    {
+        AuthorizeAs(Roles.User);
+
+        var response = await Client.GetAsync($"{BaseRoute}/refresh");
+
+        response.StatusCode.ShouldNotBe(HttpStatusCode.OK);
+    }
+
+    [Test]
+    public async Task RefreshTree_WithoutToken_Returns401()
+    {
+        var response = await Client.PostAsync($"{BaseRoute}/refresh", content: null);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
 
     // ── GET path ────────────────────────────────────────────────────────────
