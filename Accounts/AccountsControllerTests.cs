@@ -12,6 +12,8 @@ namespace Klacks.ApiTest.Accounts;
 public class AccountsControllerTests : ApiTestBase
 {
     private const string BaseRoute = "/api/backend/Accounts";
+    private const string RequestedWithHeader = "X-Requested-With";
+    private const string RequestedWithValue = "XMLHttpRequest";
 
     // ── ValidateToken ────────────────────────────────────────────────────────
 
@@ -117,11 +119,22 @@ public class AccountsControllerTests : ApiTestBase
     // ── RefreshToken (anonymous) ─────────────────────────────────────────────
 
     [Test]
-    public async Task RefreshToken_WithNullBody_Returns415()
+    public async Task RefreshToken_WithoutCsrfProof_Returns403()
     {
         var response = await Client.PostAsync($"{BaseRoute}/RefreshToken", null);
 
-        response.StatusCode.ShouldBe(HttpStatusCode.UnsupportedMediaType);
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Test]
+    public async Task RefreshToken_WithCsrfProofButWithoutCookieOrBody_Returns401()
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"{BaseRoute}/RefreshToken");
+        request.Headers.Add(RequestedWithHeader, RequestedWithValue);
+
+        var response = await Client.SendAsync(request);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
 
     // ── RequestPasswordReset (anonymous) ─────────────────────────────────────
