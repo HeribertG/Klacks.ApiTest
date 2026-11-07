@@ -35,9 +35,19 @@ public class AgentAutonomyControllerTests : ApiTestBase
     // ── GET ─────────────────────────────────────────────────────────────────
 
     [Test]
-    public async Task GetMyLevel_WithUserRole_ReturnsOk()
+    public async Task GetMyLevel_WithUserRole_Returns403()
     {
         AuthorizeAs(Roles.User);
+
+        var response = await Client.GetAsync(BaseRoute);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Test]
+    public async Task GetMyLevel_WithAuthorisedRole_ReturnsOk()
+    {
+        AuthorizeAs(Roles.Authorised);
 
         var response = await Client.GetAsync(BaseRoute);
 
@@ -57,9 +67,20 @@ public class AgentAutonomyControllerTests : ApiTestBase
     // ── PUT ─────────────────────────────────────────────────────────────────
 
     [Test]
-    public async Task SetMyLevel_ValidLevel_WithUserRole_ReturnsOk()
+    public async Task SetMyLevel_WithUserRole_Returns403()
     {
         AuthorizeAs(Roles.User);
+        var payload = new { Level = 1 };
+
+        var response = await Client.PutAsJsonAsync(BaseRoute, payload);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Test]
+    public async Task SetMyLevel_ValidLevel_WithAuthorisedRole_ReturnsOk()
+    {
+        AuthorizeAs(Roles.Authorised);
         var payload = new { Level = 1 };
 
         var response = await Client.PutAsJsonAsync(BaseRoute, payload);
@@ -70,7 +91,7 @@ public class AgentAutonomyControllerTests : ApiTestBase
     [Test]
     public async Task SetMyLevel_InvalidLevel_ReturnsBadRequest()
     {
-        AuthorizeAs(Roles.User);
+        AuthorizeAs(Roles.Authorised);
         var payload = new { Level = 999 };
 
         var response = await Client.PutAsJsonAsync(BaseRoute, payload);

@@ -65,14 +65,14 @@ public class PersonalAccessTokensControllerTests : ApiTestBase
     // ── POST create ──────────────────────────────────────────────────────────
 
     [Test]
-    public async Task Create_WithUserRole_IsNotUnauthorized()
+    public async Task Create_WithUserRole_Returns403()
     {
         AuthorizeAs(Roles.User);
         var payload = new { Name = "TestToken", ExpiresInDays = 30 };
 
         var response = await Client.PostAsJsonAsync(BaseRoute, payload);
 
-        response.StatusCode.ShouldNotBe(HttpStatusCode.Unauthorized);
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
     // ── DELETE revoke ────────────────────────────────────────────────────────

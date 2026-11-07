@@ -73,9 +73,20 @@ public class AgentPlansControllerTests : ApiTestBase
     // ── POST create ──────────────────────────────────────────────────────────
 
     [Test]
-    public async Task CreatePlan_EmptyGoal_ReturnsBadRequest()
+    public async Task CreatePlan_WithUserRole_Returns403()
     {
         AuthorizeAs(Roles.User);
+        var payload = new { Goal = "Plan next week", SessionId = (string?)null };
+
+        var response = await Client.PostAsJsonAsync(BaseRoute, payload);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Test]
+    public async Task CreatePlan_EmptyGoal_ReturnsBadRequest()
+    {
+        AuthorizeAs(Roles.Authorised);
         var payload = new { Goal = "", SessionId = (string?)null };
 
         var response = await Client.PostAsJsonAsync(BaseRoute, payload);
@@ -86,9 +97,19 @@ public class AgentPlansControllerTests : ApiTestBase
     // ── POST approve unknown plan ─────────────────────────────────────────────
 
     [Test]
-    public async Task ApprovePlan_WithUserRole_UnknownId_Returns404()
+    public async Task ApprovePlan_WithUserRole_Returns403()
     {
         AuthorizeAs(Roles.User);
+
+        var response = await Client.PostAsJsonAsync($"{BaseRoute}/{Guid.NewGuid()}/approve", new { });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Test]
+    public async Task ApprovePlan_WithAuthorisedRole_UnknownId_Returns404()
+    {
+        AuthorizeAs(Roles.Authorised);
 
         var response = await Client.PostAsJsonAsync($"{BaseRoute}/{Guid.NewGuid()}/approve", new { });
 
