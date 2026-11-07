@@ -2,10 +2,11 @@
 
 /**
  * HTTP-level tests for WorksController (api/backend/Works).
- * Covers get, post, put, delete, confirm/unconfirm — including auth enforcement (401/404).
+ * Covers get, post (also repeated with the same Idempotency-Key), put, delete, confirm/unconfirm — including auth enforcement (401/404).
  * A Client and a Shift are created once per fixture and cleaned up in OneTimeTearDown.
  */
 
+using Klacks.Api.Application.Constants;
 using Klacks.Api.Application.DTOs.Schedules;
 using Klacks.Api.Application.DTOs.Staffs;
 
@@ -133,6 +134,61 @@ public class WorksControllerTests : ApiTestBase
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
+    // ── POST with Idempotency-Key ───────────────────────────────────────────
+
+    [Test]
+    public async Task PostWork_SameIdempotencyKeyTwice_CreatesOneWork_AndAnswersBothWithItsId()
+    {
+        AuthorizeAs(Roles.User);
+        var key = Guid.NewGuid().ToString("D");
+
+        var first = await PostWithIdempotencyKeyAsync(key);
+        var second = await PostWithIdempotencyKeyAsync(key);
+
+        first.StatusCode.ShouldBe(HttpStatusCode.OK);
+        second.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var firstWork = (await first.Content.ReadFromJsonAsync<WorkResource>())!;
+        var secondWork = (await second.Content.ReadFromJsonAsync<WorkResource>())!;
+        secondWork.Id.ShouldBe(firstWork.Id);
+        (await CountTopLevelWorksAsync()).ShouldBe(1);
+    }
+
+    [Test]
+    public async Task PostWork_SameIdempotencyKeyAtTheSameTime_CreatesOneWork()
+    {
+        AuthorizeAs(Roles.User);
+        var key = Guid.NewGuid().ToString("D");
+
+        var responses = await Task.WhenAll(PostWithIdempotencyKeyAsync(key), PostWithIdempotencyKeyAsync(key));
+
+        responses.ShouldAllBe(response => response.StatusCode == HttpStatusCode.OK);
+        var ids = await Task.WhenAll(responses.Select(async r => (await r.Content.ReadFromJsonAsync<WorkResource>())!.Id));
+        ids.Distinct().Count().ShouldBe(1);
+        (await CountTopLevelWorksAsync()).ShouldBe(1);
+    }
+
+    [Test]
+    public async Task PostWork_TwoIdempotencyKeys_CreatesTwoWorks()
+    {
+        AuthorizeAs(Roles.User);
+
+        (await PostWithIdempotencyKeyAsync(Guid.NewGuid().ToString("D"))).StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await PostWithIdempotencyKeyAsync(Guid.NewGuid().ToString("D"))).StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        (await CountTopLevelWorksAsync()).ShouldBe(2);
+    }
+
+    [Test]
+    public async Task PostWork_MalformedIdempotencyKey_Returns400_AndCreatesNothing()
+    {
+        AuthorizeAs(Roles.User);
+
+        var response = await PostWithIdempotencyKeyAsync("not-a-guid");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await CountTopLevelWorksAsync()).ShouldBe(0);
+    }
+
     // ── PUT ─────────────────────────────────────────────────────────────────
 
     [Test]
@@ -239,6 +295,19 @@ public class WorksControllerTests : ApiTestBase
         EndTime = new TimeOnly(16, 0),
         WorkTime = 8,
     };
+
+    private async Task<HttpResponseMessage> PostWithIdempotencyKeyAsync(string key)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, BaseRoute)
+        {
+            Content = JsonContent.Create(MinimalWork()),
+        };
+        request.Headers.Add(HttpHeaderNames.IdempotencyKey, key);
+        return await Client.SendAsync(request);
+    }
+
+    private Task<int> CountTopLevelWorksAsync() =>
+        DbContext.Work.CountAsync(w => w.ClientId == _clientId && w.ParentWorkId == null && !w.IsDeleted);
 
     private async Task<WorkResource> CreateWorkAsync()
     {
