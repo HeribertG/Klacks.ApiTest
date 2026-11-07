@@ -2,7 +2,7 @@
 
 /**
  * HTTP-level tests for AgentsController (api/backend/assistant/agents).
- * Covers auth enforcement (401 without token), basic CRUD responses, and sub-resource endpoints.
+ * Covers auth enforcement (401 without token, 403 for non-admin create/update), basic CRUD responses, and sub-resource endpoints.
  */
 
 using Klacks.Api.Application.DTOs.Assistant;
@@ -80,9 +80,20 @@ public class AgentsControllerTests : ApiTestBase
     // ── POST ────────────────────────────────────────────────────────────────
 
     [Test]
-    public async Task Create_WithUserRole_ReturnsCreated()
+    public async Task Create_WithUserRole_Returns403()
     {
         AuthorizeAs(Roles.User);
+        var payload = new CreateAgentRequest($"{TestPrefix}CreateUser", "Test Agent", null);
+
+        var response = await Client.PostAsJsonAsync(BaseRoute, payload);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Test]
+    public async Task Create_WithAdminRole_ReturnsCreated()
+    {
+        AuthorizeAs(Roles.Admin);
         var payload = new CreateAgentRequest($"{TestPrefix}Create", "Test Agent", null);
 
         var response = await Client.PostAsJsonAsync(BaseRoute, payload);
@@ -93,9 +104,20 @@ public class AgentsControllerTests : ApiTestBase
     // ── PUT ─────────────────────────────────────────────────────────────────
 
     [Test]
-    public async Task Update_UnknownId_Returns404()
+    public async Task Update_WithUserRole_Returns403()
     {
         AuthorizeAs(Roles.User);
+        var payload = new UpdateAgentRequest("Updated Name", null, null, true);
+
+        var response = await Client.PutAsJsonAsync($"{BaseRoute}/{Guid.NewGuid()}", payload);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Test]
+    public async Task Update_UnknownId_Returns404()
+    {
+        AuthorizeAs(Roles.Admin);
         var payload = new UpdateAgentRequest("Updated Name", null, null, true);
 
         var response = await Client.PutAsJsonAsync($"{BaseRoute}/{Guid.NewGuid()}", payload);
