@@ -2,9 +2,10 @@
 
 /**
  * HTTP-level tests for AutoWizardController (api/backend/AutoWizard).
- * Covers auth enforcement (401/403), the Admin-only role restriction, limit-validation
- * returning 400, and the Cancel endpoint for an unknown job.
- * AutoWizardController requires Admin role.
+ * Covers auth enforcement (401), the opening to every planner (owner rule 2026-11-07: autofill is planning work, so a
+ * signed-in user without the Admin role is no longer refused by role; group visibility bounds the start and the
+ * job access rule answers a job the caller may not address like an unknown one), limit-validation returning 400,
+ * and the Cancel endpoint for an unknown job.
  */
 
 namespace Klacks.ApiTest.AutoWizard;
@@ -27,14 +28,39 @@ public class AutoWizardControllerTests : ApiTestBase
     }
 
     [Test]
-    public async Task Start_WithUserRole_Returns403()
+    public async Task Start_WithUserRole_ForAnUnknownGroup_IsNotRefusedByRole()
     {
         AuthorizeAs(Roles.User);
-        var payload = MinimalStartRequest();
+        var payload = new
+        {
+            PeriodFrom = new DateOnly(2025, 3, 1),
+            PeriodUntil = new DateOnly(2025, 3, 31),
+            AgentIds = Array.Empty<Guid>(),
+            ShiftIds = (List<Guid>?)null,
+            GroupId = (Guid?)Guid.NewGuid(),
+            AnalyseToken = (Guid?)null,
+            Language = (string?)null
+        };
 
         var response = await Client.PostAsJsonAsync($"{BaseRoute}/Start", payload);
 
-        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        // A restricted planner gets 404 (a group outside the scope is answered like a missing one); without any group
+        // restriction in the database the planner is unrestricted and the run starts. Never 403: the role gate is gone.
+        // Its own period keeps it clear of the January run of Start_WithAdminRole_ReturnsJobId (AutofillStartGuard 409).
+        response.StatusCode.ShouldBeOneOf(HttpStatusCode.NotFound, HttpStatusCode.OK);
+    }
+
+    [Test]
+    public async Task Status_WithUserRole_UnknownJob_ReturnsUnknown()
+    {
+        AuthorizeAs(Roles.User);
+
+        var response = await Client.GetAsync($"{BaseRoute}/Status/{Guid.NewGuid()}");
+        var body = await response.Content.ReadFromJsonAsync<AutoWizardJobStatusResponse>();
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        body.ShouldNotBeNull();
+        body!.Status.ShouldBe("unknown");
     }
 
     [Test]
@@ -48,14 +74,17 @@ public class AutoWizardControllerTests : ApiTestBase
     }
 
     [Test]
-    public async Task Cancel_WithUserRole_Returns403()
+    public async Task Cancel_WithUserRole_UnknownJob_ReturnsFalse()
     {
         AuthorizeAs(Roles.User);
         var payload = new { JobId = Guid.NewGuid() };
 
         var response = await Client.PostAsJsonAsync($"{BaseRoute}/Cancel", payload);
+        var body = await response.Content.ReadFromJsonAsync<CancelAutoWizardResponse>();
 
-        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        body.ShouldNotBeNull();
+        body!.Cancelled.ShouldBeFalse();
     }
 
     // ── Start — limit validation ─────────────────────────────────────────────
@@ -129,3 +158,4 @@ public class AutoWizardControllerTests : ApiTestBase
 
 file sealed record StartAutoWizardResponse(Guid JobId);
 file sealed record CancelAutoWizardResponse(bool Cancelled);
+file sealed record AutoWizardJobStatusResponse(string Status);
