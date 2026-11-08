@@ -117,15 +117,27 @@ public class SchedulingRulesControllerTests : ApiTestBase
         created.Name.ShouldBe(payload.Name);
     }
 
+    // Scheduling rules are settings and Admin-only (owner decision 2026-11-07, roles are work areas).
     [Test]
-    public async Task PostSchedulingRule_WithAuthorisedRole_ReturnsCreatedSchedulingRule()
+    public async Task PostSchedulingRule_WithAuthorisedRole_Returns403()
     {
         AuthorizeAs(Roles.Authorised);
         var payload = MinimalSchedulingRule($"{TestPrefix}PostAuth");
 
         var response = await Client.PostAsJsonAsync(BaseRoute, payload);
 
-        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Test]
+    public async Task PutSchedulingRule_WithAuthorisedRole_Returns403()
+    {
+        AuthorizeAs(Roles.Authorised);
+        var payload = MinimalSchedulingRule($"{TestPrefix}PutAuth");
+
+        var response = await Client.PutAsJsonAsync(BaseRoute, payload);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
     // ── DELETE ──────────────────────────────────────────────────────────────

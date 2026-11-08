@@ -173,15 +173,50 @@ public class GroupsControllerTests : ApiTestBase
         created.Id.ShouldNotBe(Guid.Empty);
     }
 
+    // The group structure is a setting and Admin-only (owner decision 2026-11-07, roles are work areas);
+    // putting an employee into a group goes through PUT Clients or GroupItems and stays with the supervisor.
     [Test]
-    public async Task PostGroup_WithAuthorisedRole_ReturnsCreatedGroup()
+    public async Task PostGroup_WithAuthorisedRole_Returns403()
     {
         AuthorizeAs(Roles.Authorised);
         var payload = MinimalGroup($"{TestPrefix}PostAuth");
 
         var response = await Client.PostAsJsonAsync(BaseRoute, payload);
 
-        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Test]
+    public async Task PutGroup_WithAuthorisedRole_Returns403()
+    {
+        AuthorizeAs(Roles.Admin);
+        var created = await CreateGroupAsync($"{TestPrefix}PutAuth");
+        AuthorizeAs(Roles.Authorised);
+
+        var response = await Client.PutAsJsonAsync(BaseRoute, created);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Test]
+    public async Task MoveGroup_WithAuthorisedRole_Returns403()
+    {
+        AuthorizeAs(Roles.Authorised);
+
+        var response = await Client.PostAsync($"{BaseRoute}/move/{Guid.NewGuid()}?newParentId={Guid.NewGuid()}", null);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Test]
+    public async Task SetGroupLocation_WithAuthorisedRole_Returns403()
+    {
+        AuthorizeAs(Roles.Authorised);
+
+        var response = await Client.PutAsJsonAsync(
+            $"{BaseRoute}/{Guid.NewGuid()}/location", new GroupLocationResource { Latitude = 47.0, Longitude = 8.0 });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
     // ── DELETE ──────────────────────────────────────────────────────────────

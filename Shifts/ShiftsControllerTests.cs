@@ -134,6 +134,32 @@ public class ShiftsControllerTests : ApiTestBase
         deleted!.Id.ShouldBe(created.Id);
     }
 
+    // Orders and shifts are the supervisor's work area, deleting them included (owner decision 2026-11-07).
+    [Test]
+    public async Task DeleteShift_WithAuthorisedRole_ReturnsDeletedShift()
+    {
+        AuthorizeAs(Roles.Authorised);
+        var created = await CreateShiftAsync($"{TestPrefix}DeleteAuth");
+
+        var response = await Client.DeleteAsync($"{BaseRoute}/{created.Id}");
+        var deleted = await response.Content.ReadFromJsonAsync<ShiftResource>();
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        deleted!.Id.ShouldBe(created.Id);
+    }
+
+    [Test]
+    public async Task DeleteShift_WithUserRole_Returns403()
+    {
+        AuthorizeAs(Roles.Admin);
+        var created = await CreateShiftAsync($"{TestPrefix}DeleteUser");
+        AuthorizeAs(Roles.User);
+
+        var response = await Client.DeleteAsync($"{BaseRoute}/{created.Id}");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
     [Test]
     public async Task DeleteShift_UnknownId_Returns404()
     {

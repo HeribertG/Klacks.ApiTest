@@ -48,6 +48,30 @@ public class AssignedGroupsControllerTests : ApiTestBase
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
+    // The group structure is a setting and Admin-only (owner decision 2026-11-07); this route writes a group
+    // itself, so a Supervisor is refused like on GroupsController.
+    [Test]
+    public async Task PostAssignedGroup_WithAuthorisedRole_Returns403()
+    {
+        AuthorizeAs(Roles.Authorised);
+        var payload = new GroupResource { Name = $"{TestPrefix}GroupAuth" };
+
+        var response = await Client.PostAsJsonAsync(BaseRoute, payload);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Test]
+    public async Task PutAssignedGroup_WithAuthorisedRole_Returns403()
+    {
+        AuthorizeAs(Roles.Authorised);
+        var payload = new GroupResource { Id = Guid.NewGuid(), Name = $"{TestPrefix}GroupAuthPut" };
+
+        var response = await Client.PutAsJsonAsync(BaseRoute, payload);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
     // ── GET list ────────────────────────────────────────────────────────────
 
     [Test]

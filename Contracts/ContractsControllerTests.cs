@@ -117,13 +117,37 @@ public class ContractsControllerTests : ApiTestBase
         created.Id.ShouldNotBe(Guid.Empty);
     }
 
+    // Contract templates are settings and Admin-only (owner decision 2026-11-07, roles are work areas);
+    // assigning a contract to an employee goes through PUT Clients and stays with the supervisor.
     [Test]
-    public async Task PostContract_WithAuthorisedRole_ReturnsCreatedContract()
+    public async Task PostContract_WithAuthorisedRole_Returns403()
     {
         AuthorizeAs(Roles.Authorised);
         var payload = MinimalContract($"{TestPrefix}PostAuth");
 
         var response = await Client.PostAsJsonAsync(BaseRoute, payload);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Test]
+    public async Task PutContract_WithAuthorisedRole_Returns403()
+    {
+        AuthorizeAs(Roles.Admin);
+        var created = await CreateContractAsync($"{TestPrefix}PutAuth");
+        AuthorizeAs(Roles.Authorised);
+
+        var response = await Client.PutAsJsonAsync(BaseRoute, created);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Test]
+    public async Task GetContracts_WithAuthorisedRole_ReturnsOk()
+    {
+        AuthorizeAs(Roles.Authorised);
+
+        var response = await Client.GetAsync(BaseRoute);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
