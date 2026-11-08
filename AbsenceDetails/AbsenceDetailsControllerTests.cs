@@ -3,7 +3,8 @@
 /**
  * HTTP-level tests for AbsenceDetailsController (api/backend/AbsenceDetails).
  * Covers list, get, post, delete — including auth enforcement (401/403/404).
- * AbsenceDetailsController inherits InputBaseController, restricting mutations to Admin/Authorised.
+ * The extended absences belong to the absence type settings: Post and Put are Admin-only (owner decision
+ * 2026-11-08), Delete is Admin-only from InputBaseController, reads stay open.
  * A parent Absence is created once per fixture; AbsenceDetails are cleaned up by AbsenceId.
  */
 
@@ -152,13 +153,36 @@ public class AbsenceDetailsControllerTests : ApiTestBase
         created.AbsenceId.ShouldBe(_absenceId);
     }
 
+    // Extended absences are part of the absence type settings and Admin-only (owner decision 2026-11-08).
     [Test]
-    public async Task PostAbsenceDetail_WithAuthorisedRole_ReturnsCreatedAbsenceDetail()
+    public async Task PostAbsenceDetail_WithAuthorisedRole_Returns403()
     {
         AuthorizeAs(Roles.Authorised);
         var payload = MinimalAbsenceDetail();
 
         var response = await Client.PostAsJsonAsync(BaseRoute, payload);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Test]
+    public async Task PutAbsenceDetail_WithAuthorisedRole_Returns403()
+    {
+        AuthorizeAs(Roles.Admin);
+        var created = await CreateAbsenceDetailAsync();
+        AuthorizeAs(Roles.Authorised);
+
+        var response = await Client.PutAsJsonAsync(BaseRoute, created);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Test]
+    public async Task GetAbsenceDetails_WithAuthorisedRole_ReturnsOk()
+    {
+        AuthorizeAs(Roles.Authorised);
+
+        var response = await Client.GetAsync(BaseRoute);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }

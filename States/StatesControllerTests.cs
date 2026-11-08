@@ -3,7 +3,7 @@
 /**
  * HTTP-level tests for StatesController (api/backend/States).
  * GET list is public (no auth required); GET single requires a token;
- * Delete/Post/Put require Admin or Authorised role.
+ * States are settings: Post, Put and Delete are Admin-only (owner decision 2026-11-08).
  */
 
 using Klacks.Api.Application.DTOs.Settings;
@@ -87,20 +87,37 @@ public class StatesControllerTests : ApiTestBase
         await CleanUpStateAsync(created.Id);
     }
 
+    // States are settings and Admin-only (owner decision 2026-11-08, all settings are Admin work).
     [Test]
-    public async Task PostState_WithAuthorisedRole_ReturnsCreatedState()
+    public async Task PostState_WithAuthorisedRole_Returns403()
     {
         AuthorizeAs(Roles.Authorised);
         var payload = MinimalState();
 
         var response = await Client.PostAsJsonAsync(BaseRoute, payload);
-        var created = await response.Content.ReadFromJsonAsync<StateResource>();
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Test]
+    public async Task PutState_WithAuthorisedRole_Returns403()
+    {
+        AuthorizeAs(Roles.Authorised);
+        var payload = MinimalState();
+
+        var response = await Client.PutAsJsonAsync(BaseRoute, payload);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Test]
+    public async Task GetStateList_WithAuthorisedRole_ReturnsOk()
+    {
+        AuthorizeAs(Roles.Authorised);
+
+        var response = await Client.GetAsync(BaseRoute);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        created.ShouldNotBeNull();
-
-        AuthorizeAs(Roles.Admin);
-        await CleanUpStateAsync(created!.Id);
     }
 
     // ── DELETE ──────────────────────────────────────────────────────────────

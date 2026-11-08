@@ -3,7 +3,8 @@
 /**
  * HTTP-level tests for AbsencesController (api/backend/Absences).
  * Covers list, get, post, delete — including auth enforcement (401/403/404).
- * AbsencesController inherits InputBaseController which restricts mutations to Admin/Authorised.
+ * Absence types are settings: Post and Put are Admin-only (owner decision 2026-11-08), Delete is Admin-only
+ * from InputBaseController, reads stay open.
  */
 
 using Klacks.Api.Application.DTOs.Schedules;
@@ -112,13 +113,37 @@ public class AbsencesControllerTests : ApiTestBase
         created!.Id.ShouldNotBe(Guid.Empty);
     }
 
+    // Absence types are settings and Admin-only (owner decision 2026-11-08, all settings are Admin work);
+    // booking an employee's absence goes through Breaks and stays planner work.
     [Test]
-    public async Task PostAbsence_WithAuthorisedRole_ReturnsCreatedAbsence()
+    public async Task PostAbsence_WithAuthorisedRole_Returns403()
     {
         AuthorizeAs(Roles.Authorised);
         var payload = MinimalAbsence($"{TestPrefix}PostAuth");
 
         var response = await Client.PostAsJsonAsync(BaseRoute, payload);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Test]
+    public async Task PutAbsence_WithAuthorisedRole_Returns403()
+    {
+        AuthorizeAs(Roles.Admin);
+        var created = await CreateAbsenceAsync($"{TestPrefix}PutAuth");
+        AuthorizeAs(Roles.Authorised);
+
+        var response = await Client.PutAsJsonAsync(BaseRoute, created);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Test]
+    public async Task GetAbsences_WithAuthorisedRole_ReturnsOk()
+    {
+        AuthorizeAs(Roles.Authorised);
+
+        var response = await Client.GetAsync(BaseRoute);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
