@@ -3,9 +3,10 @@
 /**
  * HTTP-level tests for GroupsController (api/backend/Groups).
  * Covers create, get, delete, tree, refresh (POST only), path, roots, members, and move — including auth enforcement (401/403/404)
- * and the supervisor's subgroup writes (owner decision 2026-11-08).
+ * and the supervisor's subgroup writes (owner decision 2026-11-08); a missing and a hidden parent get the same 403.
  */
 
+using System.Text.Json;
 using Klacks.Api.Application.DTOs.Associations;
 using Klacks.Api.Domain.Models.Associations;
 
@@ -219,6 +220,25 @@ public class GroupsControllerTests : ApiTestBase
     }
 
     [Test]
+    public async Task PostGroup_SubgroupUnderMissingGroupWithAuthorisedRole_IsAnsweredLikeAHiddenParent()
+    {
+        var visibleRoot = await CreateRootAsync($"{TestPrefix}SeenRootB", PaymentInterval.Monthly);
+        var hiddenRoot = await CreateRootAsync($"{TestPrefix}HiddenRootB", PaymentInterval.Monthly);
+        await AuthorizeSupervisorSeeingAsync(visibleRoot.Id);
+        var underHidden = MinimalGroup($"{TestPrefix}SubUnderHidden");
+        underHidden.Parent = hiddenRoot.Id;
+        var underMissing = MinimalGroup($"{TestPrefix}SubUnderMissing");
+        underMissing.Parent = Guid.NewGuid();
+
+        var hiddenResponse = await Client.PostAsJsonAsync(BaseRoute, underHidden);
+        var missingResponse = await Client.PostAsJsonAsync(BaseRoute, underMissing);
+
+        hiddenResponse.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        missingResponse.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        (await ProblemDetailOf(missingResponse)).ShouldBe(await ProblemDetailOf(hiddenResponse));
+    }
+
+    [Test]
     public async Task PostGroup_SubgroupWithAShiftAssignmentWithAuthorisedRole_Returns403()
     {
         var root = await CreateRootAsync($"{TestPrefix}ShiftRoot", PaymentInterval.Monthly);
@@ -384,6 +404,12 @@ public class GroupsControllerTests : ApiTestBase
         response.EnsureSuccessStatusCode();
         var subgroup = (await response.Content.ReadFromJsonAsync<GroupResource>())!;
         return (root, subgroup);
+    }
+
+    private static async Task<string?> ProblemDetailOf(HttpResponseMessage response)
+    {
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        return document.RootElement.GetProperty("detail").GetString();
     }
 
     private async Task AuthorizeSupervisorSeeingAsync(Guid rootId)
