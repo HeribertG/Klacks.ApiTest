@@ -2,10 +2,12 @@
 
 /**
  * HTTP-level tests for GroupsController (api/backend/Groups).
- * Covers create, get, delete, tree, refresh (POST only), path, roots, members, and move — including auth enforcement (401/403/404).
+ * Covers create, get, delete, tree, refresh (POST only), path, roots, members, and move — including auth enforcement (401/403/404)
+ * and the supervisor's subgroup writes (owner decision 2026-11-08).
  */
 
 using Klacks.Api.Application.DTOs.Associations;
+using Klacks.Api.Domain.Models.Associations;
 
 namespace Klacks.ApiTest.Groups;
 
@@ -173,10 +175,8 @@ public class GroupsControllerTests : ApiTestBase
         created.Id.ShouldNotBe(Guid.Empty);
     }
 
-    // The group structure is a setting and Admin-only (owner decision 2026-11-07, roles are work areas);
-    // putting an employee into a group goes through PUT Clients or GroupItems and stays with the supervisor.
     [Test]
-    public async Task PostGroup_WithAuthorisedRole_Returns403()
+    public async Task PostGroup_RootGroupWithAuthorisedRole_Returns403()
     {
         AuthorizeAs(Roles.Authorised);
         var payload = MinimalGroup($"{TestPrefix}PostAuth");
@@ -187,13 +187,116 @@ public class GroupsControllerTests : ApiTestBase
     }
 
     [Test]
-    public async Task PutGroup_WithAuthorisedRole_Returns403()
+    public async Task PostGroup_SubgroupUnderVisibleGroupWithAuthorisedRole_TakesTheParentSettings()
     {
-        AuthorizeAs(Roles.Admin);
-        var created = await CreateGroupAsync($"{TestPrefix}PutAuth");
-        AuthorizeAs(Roles.Authorised);
+        var root = await CreateRootAsync($"{TestPrefix}SubRoot", PaymentInterval.Biweekly);
+        await AuthorizeSupervisorSeeingAsync(root.Id);
+        var payload = MinimalGroup($"{TestPrefix}SubEvent");
+        payload.Parent = root.Id;
+        payload.PaymentInterval = PaymentInterval.Weekly;
 
-        var response = await Client.PutAsJsonAsync(BaseRoute, created);
+        var response = await Client.PostAsJsonAsync(BaseRoute, payload);
+        var created = await response.Content.ReadFromJsonAsync<GroupResource>();
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var stored = await DbContext.Group.AsNoTracking().SingleAsync(g => g.Id == created!.Id);
+        stored.Parent.ShouldBe(root.Id);
+        stored.PaymentInterval.ShouldBe(PaymentInterval.Biweekly);
+    }
+
+    [Test]
+    public async Task PostGroup_SubgroupUnderHiddenGroupWithAuthorisedRole_Returns403()
+    {
+        var visibleRoot = await CreateRootAsync($"{TestPrefix}SeenRoot", PaymentInterval.Monthly);
+        var hiddenRoot = await CreateRootAsync($"{TestPrefix}HiddenRoot", PaymentInterval.Monthly);
+        await AuthorizeSupervisorSeeingAsync(visibleRoot.Id);
+        var payload = MinimalGroup($"{TestPrefix}SubHidden");
+        payload.Parent = hiddenRoot.Id;
+
+        var response = await Client.PostAsJsonAsync(BaseRoute, payload);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Test]
+    public async Task PostGroup_SubgroupWithAShiftAssignmentWithAuthorisedRole_Returns403()
+    {
+        var root = await CreateRootAsync($"{TestPrefix}ShiftRoot", PaymentInterval.Monthly);
+        await AuthorizeSupervisorSeeingAsync(root.Id);
+        var payload = MinimalGroup($"{TestPrefix}ShiftSub");
+        payload.Parent = root.Id;
+        payload.GroupItems.Add(new GroupItemResource { ShiftId = Guid.NewGuid() });
+
+        var response = await Client.PostAsJsonAsync(BaseRoute, payload);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Test]
+    public async Task PostGroup_SubgroupWithUserRole_Returns403()
+    {
+        var root = await CreateRootAsync($"{TestPrefix}PlannerRoot", PaymentInterval.Monthly);
+        AuthorizeAs(Roles.User);
+        var payload = MinimalGroup($"{TestPrefix}PlannerSub");
+        payload.Parent = root.Id;
+
+        var response = await Client.PostAsJsonAsync(BaseRoute, payload);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Test]
+    public async Task PutGroup_RootGroupWithAuthorisedRole_Returns403()
+    {
+        var root = await CreateRootAsync($"{TestPrefix}PutAuth", PaymentInterval.Monthly);
+        await AuthorizeSupervisorSeeingAsync(root.Id);
+
+        var response = await Client.PutAsJsonAsync(BaseRoute, root);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Test]
+    public async Task PutGroup_RenamingASubgroupWithAuthorisedRole_ReturnsOk()
+    {
+        var root = await CreateRootAsync($"{TestPrefix}RenameRoot", PaymentInterval.Biweekly);
+        var subPayload = MinimalGroup($"{TestPrefix}RenameSub");
+        subPayload.Parent = root.Id;
+        subPayload.PaymentInterval = PaymentInterval.Biweekly;
+        (await Client.PostAsJsonAsync(BaseRoute, subPayload)).EnsureSuccessStatusCode();
+        var subgroupId = (await DbContext.Group.AsNoTracking().SingleAsync(g => g.Name == subPayload.Name)).Id;
+        await AuthorizeSupervisorSeeingAsync(root.Id);
+        var subgroup = (await Client.GetFromJsonAsync<GroupResource>($"{BaseRoute}/{subgroupId}"))!;
+        subgroup.Name = $"{TestPrefix}Renamed";
+
+        var response = await Client.PutAsJsonAsync(BaseRoute, subgroup);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var stored = await DbContext.Group.AsNoTracking().SingleAsync(g => g.Id == subgroup.Id);
+        stored.Name.ShouldBe($"{TestPrefix}Renamed");
+        stored.PaymentInterval.ShouldBe(PaymentInterval.Biweekly);
+    }
+
+    [Test]
+    public async Task PutGroup_ChangingPaymentIntervalOfASubgroupWithAuthorisedRole_Returns403()
+    {
+        var (root, subgroup) = await CreateRootWithSubgroupAsync("Interval");
+        await AuthorizeSupervisorSeeingAsync(root.Id);
+        subgroup.PaymentInterval = PaymentInterval.Weekly;
+
+        var response = await Client.PutAsJsonAsync(BaseRoute, subgroup);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Test]
+    public async Task PutGroup_ChangingTheParentOfASubgroupWithAuthorisedRole_Returns403()
+    {
+        var (root, subgroup) = await CreateRootWithSubgroupAsync("Move");
+        await AuthorizeSupervisorSeeingAsync(root.Id);
+        subgroup.Parent = null;
+
+        var response = await Client.PutAsJsonAsync(BaseRoute, subgroup);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
@@ -260,5 +363,33 @@ public class GroupsControllerTests : ApiTestBase
         var response = await Client.PostAsJsonAsync(BaseRoute, payload);
         response.EnsureSuccessStatusCode();
         return (await response.Content.ReadFromJsonAsync<GroupResource>())!;
+    }
+
+    private async Task<GroupResource> CreateRootAsync(string name, PaymentInterval paymentInterval)
+    {
+        AuthorizeAs(Roles.Admin);
+        var payload = MinimalGroup(name);
+        payload.PaymentInterval = paymentInterval;
+        var response = await Client.PostAsJsonAsync(BaseRoute, payload);
+        response.EnsureSuccessStatusCode();
+        return (await response.Content.ReadFromJsonAsync<GroupResource>())!;
+    }
+
+    private async Task<(GroupResource Root, GroupResource Subgroup)> CreateRootWithSubgroupAsync(string suffix)
+    {
+        var root = await CreateRootAsync($"{TestPrefix}{suffix}Root", PaymentInterval.Monthly);
+        var payload = MinimalGroup($"{TestPrefix}{suffix}Sub");
+        payload.Parent = root.Id;
+        var response = await Client.PostAsJsonAsync(BaseRoute, payload);
+        response.EnsureSuccessStatusCode();
+        var subgroup = (await response.Content.ReadFromJsonAsync<GroupResource>())!;
+        return (root, subgroup);
+    }
+
+    private async Task AuthorizeSupervisorSeeingAsync(Guid rootId)
+    {
+        var supervisorId = AuthorizeAs(Roles.Authorised);
+        DbContext.GroupVisibility.Add(new GroupVisibility { AppUserId = supervisorId, GroupId = rootId });
+        await DbContext.SaveChangesAsync();
     }
 }

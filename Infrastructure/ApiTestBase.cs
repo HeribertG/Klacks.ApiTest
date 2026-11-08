@@ -5,7 +5,8 @@
  * Provides a shared KlacksApiFactory, an HttpClient, a DataBaseContext,
  * and helpers for generating signed JWT tokens per role. AuthorizeAs also persists a matching AppUser
  * (and its role membership), because role checks such as the group visibility scope read the roles
- * from the database, not from the token claim.
+ * from the database, not from the token claim. It returns the id of that user, so a test can attach data such as a
+ * group visibility row to the caller.
  */
 
 using Klacks.Api.Domain.Models.Authentification;
@@ -72,12 +73,13 @@ public abstract class ApiTestBase
         DeleteCreatedUsersAsync().GetAwaiter().GetResult();
     }
 
-    protected void AuthorizeAs(string role)
+    protected string AuthorizeAs(string role)
     {
         var userId = CreateUserAsync(role).GetAwaiter().GetResult();
         var token = GenerateToken(userId, role);
         Client.DefaultRequestHeaders.Remove("Authorization");
         Client.DefaultRequestHeaders.Add("Authorization", $"Bearer {token}");
+        return userId;
     }
 
     private async Task<string> CreateUserAsync(string role)
