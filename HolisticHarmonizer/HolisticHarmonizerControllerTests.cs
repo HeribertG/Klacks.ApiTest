@@ -2,8 +2,8 @@
 
 /**
  * HTTP-level tests for HolisticHarmonizerController (api/backend/HolisticHarmonizer).
- * Covers auth enforcement (401) and happy-path responses for Start, Cancel,
- * CheckAllModels, and ApplyAsScenario endpoints.
+ * Covers auth enforcement (401) and happy-path responses for Start, Cancel
+ * and ApplyAsScenario endpoints.
  * HolisticHarmonizerController is Admin only (autofill admin gate 2026-08-05).
  */
 
@@ -39,14 +39,6 @@ public class HolisticHarmonizerControllerTests : ApiTestBase
         var payload = new { JobId = Guid.NewGuid() };
 
         var response = await Client.PostAsJsonAsync($"{BaseRoute}/Cancel", payload);
-
-        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
-    }
-
-    [Test]
-    public async Task CheckAllModels_WithoutToken_Returns401()
-    {
-        var response = await Client.PostAsync($"{BaseRoute}/CheckAllModels", null);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
@@ -116,18 +108,6 @@ public class HolisticHarmonizerControllerTests : ApiTestBase
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         body.ShouldNotBeNull();
         body!.Cancelled.ShouldBeFalse();
-    }
-
-    // ── CheckAllModels ────────────────────────────────────────────────────────
-
-    [Test]
-    public async Task CheckAllModels_WithAdminRole_ReturnsModelList()
-    {
-        AuthorizeAs(Roles.Admin);
-
-        var response = await Client.PostAsync($"{BaseRoute}/CheckAllModels", null);
-
-        response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
     // ── ApplyAsScenario ──────────────────────────────────────────────────────
